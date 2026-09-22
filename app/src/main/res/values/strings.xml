@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Pulsar</string>
+    <string name="widget_description">Current heart rate from the sensor</string>
+    <string name="bpm_unit">bpm</string>
+    <string name="tts_locale" translatable="false">en-US</string>
+
+    <string name="status_idle">Stopped</string>
+    <string name="status_connecting">Connecting...</string>
+    <string name="status_reconnecting">Searching for sensor...</string>
+    <string name="status_no_signal">Sensor removed</string>
+    <string name="status_no_contact">No skin contact</string>
+    <string name="status_waiting">Connected, waiting for data</string>
+    <string name="status_connected">Connected</string>
+    <string name="battery">battery %1$d%%</string>
+    <string name="duration_hm">%1$d h %2$d min</string>
+    <string name="duration_m">%1$d min</string>
+
+    <string name="channel_live">Live heart rate</string>
+    <string name="notif_bpm">%1$d bpm</string>
+    <string name="notif_bpm_high">%1$d bpm - above %2$d</string>
+    <string name="notif_bpm_low">%1$d bpm - below %2$d</string>
+    <string name="action_mute">Mute</string>
+    <string name="channel_quiet">Background recording</string>
+    <string name="notif_collecting">Recording heart rate</string>
+    <string name="notif_setting_title">Heart rate in the notification</string>
+    <string name="notif_setting_on">Heart rate is shown in the notification, on the lock screen and in the Now Bar.</string>
+    <string name="notif_setting_off">The notification stays (Android requires it for background work) but is collapsed: no heart rate, no status bar icon, not on the lock screen and not in the Now Bar. An alert still adds the Mute button.</string>
+    <string name="action_stop">Stop</string>
+
+    <string name="tab_now">Now</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="perm_needed">Bluetooth and notification permissions are required.</string>
+    <string name="perm_grant">Grant permissions</string>
+    <string name="battery_hint">Samsung stops background apps. Allow unrestricted battery use, and in Settings -> Battery -> Background usage limits add Pulsar to \"Never sleeping apps\".</string>
+    <string name="battery_unrestrict">Remove restrictions</string>
+    <string name="last_5_min">Last 5 minutes</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+    <string name="btn_release">Release sensor</string>
+    <string name="released_hint">The sensor is free: it can be connected on another phone. This phone will not take it back until you press \"Start\".</string>
+    <string name="auto_search_hint">Looking for the sensor... If it is nearby and worn, recording will start by itself.</string>
+    <string name="alarm_above">Heart rate above %1$d</string>
+    <string name="alarm_below">Heart rate below %1$d</string>
+    <string name="alarm_muted_hint">Muted until heart rate is back in range</string>
+
+    <string name="period_1h">1 h</string>
+    <string name="period_6h">6 h</string>
+    <string name="period_24h">24 h</string>
+    <string name="period_7d">7 d</string>
+    <string name="stat_min">min</string>
+    <string name="stat_avg">avg</string>
+    <string name="stat_max">max</string>
+    <string name="stat_recorded">recorded</string>
+    <string name="export_preparing">Preparing file...</string>
+    <string name="export_csv">Export CSV for %1$s</string>
+    <string name="export_chooser">Export heart rate</string>
+    <string name="chart_no_data">No data for this period</string>
+
+    <string name="voice_high">Heart rate %1$d, high</string>
+    <string name="voice_low">Heart rate %1$d, low</string>
+    <string name="voice_back">Heart rate %1$d, back in range</string>
+    <string name="voice_lost">Sensor lost</string>
+    <string name="voice_bpm">Heart rate %1$d</string>
+    <string name="voice_test">Voice check</string>
+
+    <string name="alarm_title">Alert when out of range</string>
+    <string name="alarm_desc">Above the range - 3 long buzzes, below - 4 short ones, repeated every 5 s until heart rate returns or \"Mute\" is pressed. Back in range - 1 short buzz. No data from the sensor for 15 s - long-short-long. Clears with a 3 bpm margin: with an upper limit of 100 it clears at 97.</string>
+    <string name="enabled">Enabled</string>
+    <string name="rest_norm">resting norm</string>
+    <string name="walk_zone">walking (zone 2)</string>
+    <string name="preset_walk">Walking %1$d-%2$d</string>
+    <string name="preset_walk_need_birth">Walking: set your birth date</string>
+    <string name="history_title">History</string>
+    <string name="history_desc">%1$d records on this phone. Export saves the whole history to one file (CSV in gzip); import adds records from such a file, or from a CSV exported for a period, without duplicates. Imported records are not sent to Health Connect.</string>
+    <string name="history_export">Export history</string>
+    <string name="history_import">Import history</string>
+    <string name="history_busy">Working...</string>
+    <string name="history_exported">Exported %1$d records.</string>
+    <string name="history_imported">New records: %1$d, already present: %2$d, invalid lines skipped: %3$d.</string>
+    <string name="history_failed">Failed: %1$s</string>
+    <string name="birth_title">Date of birth</string>
+    <string name="birth_hint">Used to calculate the walking range (zone 2): 60-70% of max heart rate, which is about 220 minus age. Month and day are optional.</string>
+    <string name="birth_age">Age %1$d, max heart rate about %2$d. Walking (zone 2) is 60-70%% of it. Month and day are optional.</string>
+    <string name="birth_year">Year</string>
+    <string name="birth_month">Month</string>
+    <string name="birth_day">Day</string>
+    <string name="preset_rest">Resting norm %1$d-%2$d</string>
+    <string name="corridor">Range: %1$d - %2$d bpm</string>
+    <string name="from">from</string>
+    <string name="to">to</string>
+
+    <string name="voice_title">Voice in headphones</string>
+    <string name="voice_desc">Speaks only when headphones are connected: \"Heart rate 105, high\", \"Heart rate 96, back in range\", \"Sensor lost\" - and the current heart rate periodically. Music is ducked while speaking.</string>
+    <string name="headphones_on">Headphones connected.</string>
+    <string name="headphones_off">Headphones are not connected now.</string>
+    <string name="voice_every">Speak heart rate:</string>
+    <string name="voice_on_change">on change only</string>
+    <string name="minutes_n">%1$d min</string>
+    <string name="voice_test_btn">Test voice</string>
+
+    <string name="sensor_title">Sensor</string>
+    <string name="sensor_none">not selected</string>
+    <string name="change_sensor">Change sensor</string>
+    <string name="hc_unavailable">Health Connect is not available on this phone.</string>
+    <string name="hc_on">Heart rate is written to Health Connect every 5 minutes.</string>
+    <string name="hc_synced_until">Sent up to %1$s.</string>
+    <string name="hc_nothing_sent">Nothing sent yet.</string>
+    <string name="hc_offer">Write heart rate to Health Connect so Samsung Health and other apps can see it.</string>
+    <string name="hc_send_now">Send now</string>
+    <string name="hc_disable">Disable</string>
+    <string name="hc_connect">Connect</string>
+    <string name="nowbar_title">Now Bar on the lock screen</string>
+    <string name="nowbar_on">Live Updates are allowed: heart rate is shown in the Now Bar and the status bar.</string>
+    <string name="nowbar_off">Live Updates are off for this app. Turn them on to see heart rate in the Now Bar.</string>
+    <string name="enable">Turn on</string>
+    <string name="bg_title">Background work</string>
+    <string name="bg_ok">Battery restrictions are removed. Recording resumes by itself after a reboot.</string>
+    <string name="bg_bad">Battery restrictions are not removed: Samsung may stop recording.</string>
+
+    <string name="pick_title">Choose a sensor</string>
+    <string name="bt_off">Bluetooth is off. Turn it on and reopen this screen.</string>
+    <string name="pick_hint">Put the sensor on and moisten the contacts: without skin contact it is not visible.</string>
+    <string name="cancel">Cancel</string>
+    <string name="show_all_devices">Show all devices (%1$d)</string>
+    <string name="show_hr_only">Show heart rate sensors only</string>
+    <string name="hr_sensor_prefix">heart rate sensor, </string>
+</resources>
