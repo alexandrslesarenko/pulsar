@@ -32,6 +32,31 @@ object HrZones {
         return (max * 0.6).roundToInt()..(max * 0.7).roundToInt()
     }
 
+    /** Границы зон 1-5 в процентах от максимального пульса. */
+    val ZONE_PCT = listOf(50 to 60, 60 to 70, 70 to 80, 80 to 90, 90 to 100)
+
+    /** Пульс для доли [loPct, hiPct] процентов от максимума. */
+    fun pctRange(age: Int, loPct: Int, hiPct: Int): IntRange {
+        val max = maxHr(age)
+        return (max * loPct / 100.0).roundToInt()..(max * hiPct / 100.0).roundToInt()
+    }
+
+    /** Тренировка (зоны 3-4) - 70-85% от максимального пульса. */
+    fun trainingZone(age: Int): IntRange {
+        val max = maxHr(age)
+        return (max * 0.7).roundToInt()..(max * 0.85).roundToInt()
+    }
+
+    /**
+     * Попадает ли время (минуты от полуночи) в ночь [from, to). Ночь может переходить
+     * через полночь (23:00-07:00); from == to - ночи нет.
+     */
+    fun isNight(minuteOfDay: Int, from: Int, to: Int): Boolean = when {
+        from == to -> false
+        from < to -> minuteOfDay in from until to
+        else -> minuteOfDay >= from || minuteOfDay < to
+    }
+
     /** Проверка ввода: год обязателен, месяц и день - по желанию (0). */
     fun isValid(year: Int, month: Int, day: Int, today: LocalDate = LocalDate.now()): Boolean {
         if (year !in 1900..today.year - 5) return false

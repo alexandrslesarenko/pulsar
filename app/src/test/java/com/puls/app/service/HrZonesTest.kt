@@ -45,4 +45,42 @@ class HrZonesTest {
         assertFalse(HrZones.isValid(1850, 0, 0, today))
         assertFalse(HrZones.isValid(2025, 0, 0, today))
     }
+
+    @Test
+    fun nightAcrossMidnight() {
+        val from = 23 * 60
+        val to = 7 * 60
+        assertTrue(HrZones.isNight(23 * 60, from, to))
+        assertTrue(HrZones.isNight(0, from, to))
+        assertTrue(HrZones.isNight(6 * 60 + 59, from, to))
+        assertFalse(HrZones.isNight(7 * 60, from, to))
+        assertFalse(HrZones.isNight(22 * 60 + 59, from, to))
+    }
+
+    @Test
+    fun nightWithinDay() {
+        assertTrue(HrZones.isNight(14 * 60, 13 * 60, 15 * 60))
+        assertFalse(HrZones.isNight(15 * 60, 13 * 60, 15 * 60))
+        assertFalse(HrZones.isNight(12 * 60, 13 * 60, 15 * 60))
+    }
+
+    @Test
+    fun emptyNight() {
+        assertFalse(HrZones.isNight(0, 7 * 60, 7 * 60))
+    }
+
+    @Test
+    fun trainingZone() {
+        // 40 лет: максимум 180, 70-85% -> 126-153.
+        assertEquals(126..153, HrZones.trainingZone(40))
+    }
+
+    @Test
+    fun zoneTableMatchesProfileRanges() {
+        // Зона 2 из таблицы - тот же коридор, что у прогулки в режиме "авто".
+        val (lo, hi) = HrZones.ZONE_PCT[1]
+        assertEquals(HrZones.walkZone(50), HrZones.pctRange(50, lo, hi))
+        assertEquals(85..102, HrZones.pctRange(50, 50, 60))
+        assertEquals(153..170, HrZones.pctRange(50, 90, 100))
+    }
 }

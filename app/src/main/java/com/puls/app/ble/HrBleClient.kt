@@ -12,6 +12,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 
@@ -28,14 +29,27 @@ interface HrListener {
  * Держит соединение с одним датчиком. Все операции с GATT выполняются на главном потоке,
  * колбэки стека Bluetooth перекладываются туда же.
  *
- * Переподключение: сначала несколько прямых попыток с растущей задержкой (быстро ловят
- * короткий обрыв), затем autoConnect=true - контроллер сам ждёт появления датчика
- * и не тратит заряд на постоянные попытки.
+ * Переподключение: в течение окна активного поиска (searchMs) - прямые попытки подряд,
+ * затем autoConnect=true - контроллер сам ждёт появления датчика и не тратит заряд.
+ *
+ * При выключенном экране процессор засыпает, и таймеры Handler стоят вместе с ним:
+ * без удержания пробуждения отложенная попытка выполнится только при включении экрана.
+ * Поэтому на время активного поиска и на время установки соединения держим
+ * partial wakelock. Ожидание autoConnect процессора не требует.
  */
 @SuppressLint("MissingPermission")
-class HrBleClient(private val context: Context, private val listener: HrListener) {
+class HrBleClient(
+    private val context: Context,
+    private val listener: HrListener,
+    /** Сколько после потери связи искать датчик активно, мс. */
+    private val searchMs: () -> Long,
+) {
     private val main = Handler(Looper.getMainLooper())
     private val adapter = context.getSystemService(BluetoothManager::class.java).adapter
+    private val wakeLock = context.getSystemService(PowerManager::class.java)
+        .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "puls:ble").apply { setReferenceCounted(false) }
+    /** elapsedRealtime начала поиска; 0 - связь есть. */
+    private var searchSince = 0L
 
     private var gatt: BluetoothGatt? = null
     private var address: String? = null
@@ -51,6 +65,7 @@ class HrBleClient(private val context: Context, private val listener: HrListener
         this.address = address
         stopped = false
         attempt = 0
+        beginSearch()
         connect(autoConnect = false, state = ConnState.CONNECTING)
     }
 
@@ -62,7 +77,21 @@ class HrBleClient(private val context: Context, private val listener: HrListener
             it.close()
         }
         gatt = null
+        searchSince = 0
+        releaseWake()
         listener.onState(ConnState.IDLE, deviceName)
+    }
+
+    private fun beginSearch() {
+        if (searchSince == 0L) searchSince = SystemClock.elapsedRealtime()
+        val left = searchLeftMs()
+        if (left > 0) wakeLock.acquire(left + WAKE_MARGIN_MS)
+    }
+
+    private fun searchLeftMs() = searchMs() - (SystemClock.elapsedRealtime() - searchSince)
+
+    private fun releaseWake() {
+        if (wakeLock.isHeld) wakeLock.release()
     }
 
     private fun connect(autoConnect: Boolean, state: ConnState) {
@@ -94,10 +123,14 @@ class HrBleClient(private val context: Context, private val listener: HrListener
     private fun scheduleReconnect() {
         if (stopped) return
         cancelTimers()
+        beginSearch()
         attempt++
-        if (attempt <= BACKOFF_MS.size) {
-            main.postDelayed(directReconnect, BACKOFF_MS[attempt - 1])
+        if (searchLeftMs() > 0) {
+            // Прямая попытка сама ждёт датчик около 30 с, поэтому пауза между ними короткая.
+            main.postDelayed(directReconnect, BACKOFF_MS[minOf(attempt, BACKOFF_MS.size) - 1])
         } else {
+            Log.i(TAG, "active search over, waiting with autoConnect")
+            releaseWake()
             connect(autoConnect = true, state = ConnState.RECONNECTING)
         }
     }
@@ -186,6 +219,8 @@ class HrBleClient(private val context: Context, private val listener: HrListener
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
+            // Колбэк будит процессор, но ненадолго: до включения уведомлений держим его сами.
+            if (newState == BluetoothProfile.STATE_CONNECTED) wakeLock.acquire(SETUP_WAKE_MS)
             main.post {
                 if (g != gatt) return@post
                 Log.i(TAG, "state=$newState status=$status")
@@ -216,6 +251,10 @@ class HrBleClient(private val context: Context, private val listener: HrListener
                     return@post
                 }
                 attempt = 0
+                searchSince = 0
+                releaseWake()
+                // HRS шлёт раз в секунду: короткий интервал соединения тут не нужен.
+                g.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER)
                 noSignal = false
                 probeSentAt = 0
                 lastProbeOkAt = 0
@@ -260,7 +299,9 @@ class HrBleClient(private val context: Context, private val listener: HrListener
 
     companion object {
         private const val TAG = "HrBle"
-        private val BACKOFF_MS = longArrayOf(1_000, 3_000, 10_000)
+        private val BACKOFF_MS = longArrayOf(1_000, 3_000, 5_000)
+        private const val WAKE_MARGIN_MS = 60_000L
+        private const val SETUP_WAKE_MS = 30_000L
         private const val DATA_TIMEOUT_MS = 20_000L
         private const val WATCHDOG_PERIOD_MS = 5_000L
         private const val AUTO_CONNECT_RENEW_MS = 10 * 60_000L

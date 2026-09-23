@@ -1,5 +1,6 @@
 package com.puls.app.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,8 +11,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -24,6 +31,7 @@ import com.puls.app.ble.HrMeasurement
 import com.puls.app.data.HealthSync
 import com.puls.app.data.HrDb
 import com.puls.app.data.HrSample
+import com.puls.app.data.ProfileLog
 import com.puls.app.ui.MainActivity
 import com.puls.app.ui.deviceLine
 import com.puls.app.ui.statusText
@@ -47,11 +55,17 @@ class HrService : Service(), HrListener {
     private lateinit var prefs: Prefs
     private lateinit var alarm: HrAlarm
     private lateinit var voice: HrVoice
+    private lateinit var shake: ShakeDetector
+    private lateinit var motion: MotionTracker
+    private lateinit var audio: AudioManager
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val buffer = ArrayList<HrSample>()
     private val bufferLock = Mutex()
     private var lastNotifyAt = 0L
+    /** Что показано в уведомлении сейчас; перестраиваем только при смене. */
+    private var shownBpm: Int? = null
+    private lateinit var power: PowerManager
     private var lastWidgetAt = 0L
     private var lastTs = 0L
     private var destroyed = false
@@ -63,12 +77,27 @@ class HrService : Service(), HrListener {
         }
     }
 
+    /** Наушники подключили или сняли: от этого зависит, слушать ли встряхивание. */
+    private val audioCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) = updateShake()
+        override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) = updateShake()
+    }
+
+    /** При выключенном экране виджет не обновляем и уведомление обновляем редко; при включении - сразу. */
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            notifyNow()
+            pushWidget(force = true)
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
         nm = getSystemService(NotificationManager::class.java)
+        power = getSystemService(PowerManager::class.java)
         nm.deleteNotificationChannel("hr_live")
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL, getString(R.string.channel_live), NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -88,24 +117,40 @@ class HrService : Service(), HrListener {
                 enableVibration(false)
             }
         )
-        client = HrBleClient(this, this)
+        client = HrBleClient(this, this, searchMs = { prefs.sensorSearchMin * 60_000L })
         voice = HrVoice(this, prefs)
+        shake = ShakeDetector(this) {
+            val s = LiveHr.state.value
+            val bpm = s.bpm?.takeIf { s.conn == ConnState.CONNECTED && s.skinContact != false }
+            voice.sayNow(bpm, alarm.zone)
+        }
+        motion = MotionTracker(this) { kmh -> LiveHr.mutable.value = LiveHr.state.value.copy(speedKmh = kmh) }
+        audio = getSystemService(AudioManager::class.java)
+        audio.registerAudioDeviceCallback(audioCallback, null)
         alarm = HrAlarm(
             this, prefs,
             onEvent = { e, bpm -> voice.onEvent(e, bpm) },
             onChange = {
-                LiveHr.mutable.value = LiveHr.state.value.copy(alarm = alarm.zone, alarmMuted = alarm.muted)
+                LiveHr.mutable.value = LiveHr.state.value.copy(
+                    alarm = alarm.zone, alarmMuted = alarm.muted, alarmVibrates = alarm.vibrationAllowed(),
+                )
                 notifyNow()
             },
         )
         ContextCompat.registerReceiver(
             this, btReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        ContextCompat.registerReceiver(
+            this, screenReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         scope.launch { periodic() }
+        scope.launch(Dispatchers.IO) { runCatching { ProfileLog.record(this@HrService) } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_REFRESH) {
+            updateShake()
+            updateMotion()
             notifyNow()
             return START_STICKY
         }
@@ -120,10 +165,7 @@ class HrService : Service(), HrListener {
             stopSelf()
             return START_NOT_STICKY
         }
-        ServiceCompat.startForeground(
-            this, NOTIFICATION_ID, buildNotification(LiveHr.state.value),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
-        )
+        startFg(withLocation = false)
         val address = prefs.deviceAddress
         if (address == null) {
             stopSelf()
@@ -132,12 +174,18 @@ class HrService : Service(), HrListener {
         prefs.collecting = true
         prefs.released = false
         if (LiveHr.state.value.conn == ConnState.IDLE) client.start(address)
+        updateShake()
+        updateMotion()
         return START_STICKY
     }
 
     override fun onDestroy() {
         destroyed = true
         unregisterReceiver(btReceiver)
+        unregisterReceiver(screenReceiver)
+        audio.unregisterAudioDeviceCallback(audioCallback)
+        shake.stop()
+        motion.stop()
         client.stop()
         alarm.reset()
         voice.shutdown()
@@ -151,13 +199,64 @@ class HrService : Service(), HrListener {
         super.onDestroy()
     }
 
+    /** Акселерометр нужен, только когда голосу есть куда говорить. */
+    private fun updateShake() {
+        if (destroyed) return
+        if (prefs.shakeEnabled && prefs.voiceEnabled && voice.headphonesConnected()) shake.start() else shake.stop()
+    }
+
+    private fun startFg(withLocation: Boolean) {
+        val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+            (if (withLocation) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0)
+        ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(LiveHr.state.value), type)
+    }
+
+    private fun granted(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Шагомер - всегда, когда включён и разрешён. GPS - только в профиле "Тренировка"
+     * с включённым тумблером: он заметно тратит заряд.
+     */
+    private fun updateMotion() {
+        if (destroyed) return
+        if (prefs.stepsEnabled && granted(Manifest.permission.ACTIVITY_RECOGNITION)) motion.startSteps() else motion.stopSteps()
+        val gps = prefs.profile == Profile.TRAINING && prefs.gpsInTraining && granted(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (gps && !motion.gpsOn) {
+            // Геолокацию сервису даёт тип location; добавить его можно, пока приложение на экране.
+            runCatching { startFg(withLocation = true) }
+                .onSuccess { motion.startGps() }
+                .onFailure { Log.w(TAG, "location service type refused", it) }
+        } else if (!gps && motion.gpsOn) {
+            motion.stopGps()
+            LiveHr.mutable.value = LiveHr.state.value.copy(speedKmh = null)
+            runCatching { startFg(withLocation = false) }
+        }
+        if (!motion.stepsOn && !motion.gpsOn) LiveHr.mutable.value = LiveHr.state.value.copy(speedKmh = null)
+    }
+
+    private suspend fun recordMotion() {
+        val now = System.currentTimeMillis()
+        val (sample, gps) = withContext(Dispatchers.Main) { motion.take(now) to motion.gpsOn }
+        if (sample == null) return
+        if (!gps) {
+            val kmh = Speed.of(listOf(sample), prefs.heightCm)
+            LiveHr.mutable.value = LiveHr.state.value.copy(speedKmh = kmh)
+        }
+        withContext(Dispatchers.IO) { HrDb.get(this@HrService).dao().putMotion(sample) }
+    }
+
     private suspend fun periodic() {
-        var tick = 0L
+        // Отправка в Health Connect - по часам, а не по счётчику тиков: сервис перезапускается
+        // (обновление, система), и счётчик с нуля мог не дожить до отправки. Первая - сразу
+        // после запуска, чтобы догнать накопленное.
+        var lastSyncAt = 0L
         while (scope.isActive) {
             delay(FLUSH_PERIOD_MS)
             flush()
-            tick++
-            if (tick % (SYNC_PERIOD_MS / FLUSH_PERIOD_MS) == 0L) {
+            runCatching { recordMotion() }.onFailure { Log.w(TAG, "motion record failed", it) }
+            val now = SystemClock.elapsedRealtime()
+            if (lastSyncAt == 0L || now - lastSyncAt >= SYNC_PERIOD_MS) {
+                lastSyncAt = now
                 runCatching { HealthSync.sync(this) }.onFailure { Log.w(TAG, "Health Connect sync failed", it) }
             }
         }
@@ -199,7 +298,10 @@ class HrService : Service(), HrListener {
         } else {
             alarm.onLinkLost()
         }
-        if (prefs.showInNotification && now - lastNotifyAt >= NOTIFY_MIN_INTERVAL_MS) notifyNow()
+        if (prefs.showInNotification && m.bpm != shownBpm) {
+            val minInterval = if (power.isInteractive) NOTIFY_MIN_INTERVAL_MS else NOTIFY_SCREEN_OFF_INTERVAL_MS
+            if (now - lastNotifyAt >= minInterval) notifyNow()
+        }
         pushWidget(force = false)
     }
 
@@ -209,7 +311,7 @@ class HrService : Service(), HrListener {
 
     private fun pushWidget(force: Boolean) {
         val now = System.currentTimeMillis()
-        if (!force && now - lastWidgetAt < WIDGET_MIN_INTERVAL_MS) return
+        if (!force && (now - lastWidgetAt < WIDGET_MIN_INTERVAL_MS || !power.isInteractive)) return
         lastWidgetAt = now
         val s = LiveHr.state.value
         scope.launch { runCatching { HrWidget.push(this@HrService, s) } }
@@ -218,7 +320,9 @@ class HrService : Service(), HrListener {
     private fun notifyNow() {
         if (destroyed) return
         lastNotifyAt = System.currentTimeMillis()
-        nm.notify(NOTIFICATION_ID, buildNotification(LiveHr.state.value))
+        val s = LiveHr.state.value
+        shownBpm = s.bpm
+        nm.notify(NOTIFICATION_ID, buildNotification(s))
     }
 
     private fun buildNotification(s: LiveState): Notification {
@@ -238,7 +342,7 @@ class HrService : Service(), HrListener {
         )
         val stop = PendingIntent.getService(this, 1, stopIntent(this), PendingIntent.FLAG_IMMUTABLE)
         val b = NotificationCompat.Builder(this, if (show) CHANNEL else CHANNEL_QUIET)
-        if (s.alarm != AlarmZone.NORMAL && !s.alarmMuted) {
+        if (s.alarm != AlarmZone.NORMAL && !s.alarmMuted && s.alarmVibrates) {
             val mute = PendingIntent.getService(this, 2, muteIntent(this), PendingIntent.FLAG_IMMUTABLE)
             b.addAction(0, getString(R.string.action_mute), mute)
         }
@@ -270,7 +374,8 @@ class HrService : Service(), HrListener {
         private const val NOTIFICATION_ID = 1
         private const val NOTIFY_MIN_INTERVAL_MS = 1_000L
         private const val WIDGET_MIN_INTERVAL_MS = 5_000L
-        private const val FLUSH_PERIOD_MS = 10_000L
+        private const val NOTIFY_SCREEN_OFF_INTERVAL_MS = 30_000L
+        private const val FLUSH_PERIOD_MS = 60_000L
         private const val SYNC_PERIOD_MS = 5 * 60_000L
         private const val ACTION_STOP = "com.puls.app.STOP"
         private const val ACTION_MUTE = "com.puls.app.MUTE"

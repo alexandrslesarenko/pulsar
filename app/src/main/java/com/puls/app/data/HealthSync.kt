@@ -29,10 +29,11 @@ object HealthSync {
     suspend fun hasPermission(context: Context): Boolean = isAvailable(context) &&
         PERMISSION in HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
 
-    /** Отправляет все полные минуты после отметки prefs.hcSyncedUntil. */
-    suspend fun sync(context: Context) {
+    /** Отправляет все полные минуты после отметки prefs.hcSyncedUntil; возвращает, сколько минут ушло. */
+    suspend fun sync(context: Context): Int {
         val prefs = Prefs(context)
-        if (!prefs.hcEnabled || !hasPermission(context)) return
+        if (!prefs.hcEnabled || !hasPermission(context)) return 0
+        var sent = 0
         val client = HealthConnectClient.getOrCreate(context)
         val dao = HrDb.get(context).dao()
         val before = System.currentTimeMillis() / MINUTE * MINUTE
@@ -61,9 +62,11 @@ object HealthSync {
                 )
             }
             if (records.isNotEmpty()) client.insertRecords(records)
+            sent += records.size
             prefs.hcSyncedUntil = watermark
             Log.i(TAG, "synced ${records.size} minutes up to $watermark")
             if (!full) break
         }
+        return sent
     }
 }

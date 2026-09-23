@@ -14,6 +14,10 @@ data class LiveState(
     val updatedAt: Long = 0,
     val alarm: AlarmZone = AlarmZone.NORMAL,
     val alarmMuted: Boolean = false,
+    /** Сигнал сейчас вибрирует, и его есть смысл глушить. */
+    val alarmVibrates: Boolean = false,
+    /** Примерная скорость, км/ч; null - не меряется. */
+    val speedKmh: Double? = null,
 )
 
 /** Текущее состояние датчика в пределах процесса. Источник - HrService. */

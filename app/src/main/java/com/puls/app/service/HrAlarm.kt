@@ -1,5 +1,6 @@
 package com.puls.app.service
 
+import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.os.Build
@@ -8,6 +9,7 @@ import android.os.Looper
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.VibratorManager
+import java.time.LocalTime
 
 enum class AlarmZone { NORMAL, HIGH, LOW }
 
@@ -21,6 +23,9 @@ enum class AlarmEvent { HIGH, LOW, BACK, LOST }
  * - нет данных дольше LOST_AFTER_MS: длинный-короткий-длинный, один раз.
  * Повтор идёт до возврата пульса в коридор или до mute (mute - до конца текущего выхода).
  * Выход из зоны с запасом HYSTERESIS, чтобы пульс у самой границы не дёргал сигнал.
+ *
+ * Вибрацию можно выключить в профиле и ночью; тогда события всё равно идут в голос
+ * и в уведомление, молчит только вибромотор.
  */
 class HrAlarm(
     context: Context,
@@ -30,6 +35,7 @@ class HrAlarm(
 ) {
     private val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
     private val main = Handler(Looper.getMainLooper())
+    private val nm = context.getSystemService(NotificationManager::class.java)
 
     var zone = AlarmZone.NORMAL
         private set
@@ -41,6 +47,8 @@ class HrAlarm(
     /** Был сигнал "датчик потерян"; при возврате данных сообщим, где пульс. */
     private var lostSignaled = false
     private var linkUp = false
+    /** Идёт повторяющийся сигнал. */
+    private var vibrating = false
 
     private val lostTimer = Runnable {
         if (!prefs.alarmEnabled) return@Runnable
@@ -60,8 +68,14 @@ class HrAlarm(
             setZone(AlarmZone.NORMAL, silent = true)
             return
         }
-        val high = prefs.alarmHigh
-        val low = prefs.alarmLow
+        // Ночь могла начаться посреди повторяющегося сигнала.
+        if (vibrating && !vibrationAllowed()) {
+            vibrating = false
+            vibrator.cancel()
+        }
+        val range = prefs.range(prefs.profile)
+        val high = range.last
+        val low = range.first
         val target = when {
             bpm > high -> AlarmZone.HIGH
             bpm < low -> AlarmZone.LOW
@@ -110,9 +124,20 @@ class HrAlarm(
         }
     }
 
+    /** Можно ли сейчас вибрировать: так настроен профиль и сейчас не ночь. */
+    fun vibrationAllowed(now: LocalTime = LocalTime.now()): Boolean {
+        if (!prefs.vibrate(prefs.profile)) return false
+        if (!prefs.nightQuiet) return true
+        val dnd = nm.currentInterruptionFilter.let {
+            it != NotificationManager.INTERRUPTION_FILTER_ALL && it != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
+        }
+        return !dnd && !HrZones.isNight(now.hour * 60 + now.minute, prefs.nightFrom, prefs.nightTo)
+    }
+
     fun mute() {
         if (zone == AlarmZone.NORMAL || muted) return
         muted = true
+        vibrating = false
         vibrator.cancel()
         onChange()
     }
@@ -130,6 +155,7 @@ class HrAlarm(
         if (z == zone && !muted) return
         zone = z
         muted = false
+        vibrating = false
         vibrator.cancel()
         if (!silent && z != AlarmZone.NORMAL) {
             play(if (z == AlarmZone.HIGH) HIGH else LOW, repeat = true)
@@ -139,10 +165,13 @@ class HrAlarm(
     }
 
     private fun play(pattern: LongArray, repeat: Boolean) {
+        vibrating = false
+        if (!vibrationAllowed()) return
         // Чётные позиции - пауза, нечётные - импульс на полную силу.
         val amplitudes = IntArray(pattern.size) { if (it % 2 == 1) MAX_AMPLITUDE else 0 }
         val effect = VibrationEffect.createWaveform(pattern, amplitudes, if (repeat) 0 else -1)
         vibrator.cancel()
+        vibrating = repeat
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
         } else {
