@@ -59,6 +59,8 @@ class HrBleClient(
     private var stopped = true
     private var probeSentAt = 0L
     private var noSignal = false
+    private var batteryReadAt = 0L
+    private var batterySubscribed = false
 
     fun start(address: String) {
         stop()
@@ -144,6 +146,7 @@ class HrBleClient(
             if (stopped) return
             val now = SystemClock.elapsedRealtime()
             val g = gatt
+            if (g != null && now - batteryReadAt >= BATTERY_PERIOD_MS) readBattery(g)
             if (g != null && now - lastDataAt > DATA_TIMEOUT_MS) {
                 if (probeSentAt == 0L) {
                     if (now - lastProbeOkAt >= PROBE_PERIOD_MS) {
@@ -197,8 +200,27 @@ class HrBleClient(
         }
     }
 
+    private fun batteryChar(g: BluetoothGatt) =
+        g.getService(Gatt.BATTERY_SERVICE)?.getCharacteristic(Gatt.BATTERY_LEVEL)
+
+    /**
+     * Заряд читаем при подключении, раз в BATTERY_PERIOD_MS и когда датчик снова надели:
+     * на зарядке связь часто не рвётся, и без повторного чтения остаётся старое значение.
+     */
     private fun readBattery(g: BluetoothGatt) {
-        g.getService(Gatt.BATTERY_SERVICE)?.getCharacteristic(Gatt.BATTERY_LEVEL)?.let { g.readCharacteristic(it) }
+        val ch = batteryChar(g) ?: return
+        if (g.readCharacteristic(ch)) batteryReadAt = SystemClock.elapsedRealtime()
+    }
+
+    /** Подписка на уведомления о заряде, если датчик их умеет. Только после ответа на чтение: GATT не принимает две операции сразу. */
+    private fun subscribeBattery(g: BluetoothGatt) {
+        if (batterySubscribed) return
+        val ch = batteryChar(g) ?: return
+        batterySubscribed = true
+        if (ch.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY == 0) return
+        g.setCharacteristicNotification(ch, true)
+        val cccd = ch.getDescriptor(Gatt.CCCD) ?: return
+        writeDescriptor(g, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
     }
 
     private fun onValue(uuid: java.util.UUID, value: ByteArray) {
@@ -210,10 +232,15 @@ class HrBleClient(
                     noSignal = false
                     Log.i(TAG, "data resumed")
                     listener.onState(ConnState.CONNECTED, deviceName)
+                    gatt?.let { readBattery(it) }
                 }
                 listener.onMeasurement(it)
             }
-            Gatt.BATTERY_LEVEL -> if (value.isNotEmpty()) listener.onBattery(value[0].toInt() and 0xFF)
+            Gatt.BATTERY_LEVEL -> if (value.isNotEmpty()) {
+                Log.i(TAG, "battery ${value[0].toInt() and 0xFF}%")
+                listener.onBattery(value[0].toInt() and 0xFF)
+                gatt?.let { subscribeBattery(it) }
+            }
         }
     }
 
@@ -246,6 +273,8 @@ class HrBleClient(
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
             main.post {
                 if (g != gatt) return@post
+                // Подписка на заряд необязательна: её отказ связь не рвёт.
+                if (d.characteristic.uuid == Gatt.BATTERY_LEVEL) return@post
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     g.disconnect()
                     return@post
@@ -258,6 +287,7 @@ class HrBleClient(
                 noSignal = false
                 probeSentAt = 0
                 lastProbeOkAt = 0
+                batterySubscribed = false
                 lastDataAt = SystemClock.elapsedRealtime()
                 deviceName = g.device.name ?: deviceName
                 listener.onState(ConnState.CONNECTED, deviceName)
@@ -308,5 +338,6 @@ class HrBleClient(
         private const val PROBE_TIMEOUT_MS = 5_000L
         private const val PROBE_PERIOD_MS = 30_000L
         private const val DISCOVER_DELAY_MS = 500L
+        private const val BATTERY_PERIOD_MS = 10 * 60_000L
     }
 }
