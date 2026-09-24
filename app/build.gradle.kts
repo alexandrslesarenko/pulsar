@@ -30,6 +30,10 @@ android {
     buildFeatures {
         compose = true
     }
+    // Список языков для выбора языка приложения в настройках Android 13+.
+    androidResources {
+        generateLocaleConfig = true
+    }
 }
 
 kotlin {

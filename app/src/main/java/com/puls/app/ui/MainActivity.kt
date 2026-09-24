@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.LocaleList
+import android.app.LocaleManager
 import android.os.Bundle
 import java.time.YearMonth
 import java.time.Month
@@ -133,6 +135,9 @@ import com.puls.app.data.HealthSync
 import com.puls.app.service.AlarmZone
 import com.puls.app.service.HrService
 import com.puls.app.service.HrVoice
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.puls.app.service.VoiceLang
+import android.speech.tts.TextToSpeech
 import com.puls.app.data.HistoryTransfer
 import com.puls.app.data.HrDb
 import com.puls.app.service.HrZones
@@ -151,6 +156,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 private const val AUTO_START_SCAN_MS = 15_000L
+private const val STATE_SETTINGS_PAGE = "settings_page"
+private const val LANGUAGE_EN = "Language"
 private const val ALARM_MIN = 40
 private const val ALARM_MAX = 200
 private val SLIDER_THUMB_INSET = 1.dp
@@ -170,10 +177,19 @@ private enum class SettingsPage(@StringRes val title: Int, @DrawableRes val icon
     VOICE(R.string.tile_voice_title, R.drawable.ic_set_headphones, Color(0xFFE8912D)),
     NOTIFICATION(R.string.tile_notif_title, R.drawable.ic_set_notifications, Color(0xFFD4A20F)),
     THEME(R.string.theme_title, R.drawable.ic_set_palette, Color(0xFF00A5B8)),
+    LANGUAGE(R.string.lang_title, R.drawable.ic_set_language, Color(0xFF5C6BC0)),
     HISTORY(R.string.history_title, R.drawable.ic_set_history, Color(0xFF7D8FA3)),
     HEALTH(R.string.tile_hc_title, R.drawable.ic_set_favorite, Color(0xFFE0457B)),
 }
 private val ZONE_BADGE_COLUMN = 48.dp
+/**
+ * Языки приложения: тег и самоназвание. Самоназвание не переводится - свой язык
+ * должно быть легко найти, в каком бы языке ни открылось приложение.
+ */
+private val APP_LANGUAGES = listOf(
+    "en" to "English", "ru" to "Русский", "de" to "Deutsch", "fr" to "Français",
+    "es" to "Español", "it" to "Italiano", "ja" to "日本語", "ko" to "한국어", "zh-CN" to "简体中文",
+)
 /** Цвета зон 1-5 по привычной шкале спортивных часов: от спокойного к максимальному. */
 private val ZONE_COLORS = listOf(
     Color(0xFF8E9AA6), Color(0xFF3F8FE8), Color(0xFF3BA55C), Color(0xFFE8912D), Color(0xFFE5484D),
@@ -208,6 +224,8 @@ class MainActivity : ComponentActivity() {
     /** Копия prefs.stepsEnabled для экрана: от неё зависит, доступно ли "Авто". */
     private var stepsEnabled by mutableStateOf(false)
     private var themeMode by mutableStateOf(Prefs.THEME_SYSTEM)
+    /** Язык приложения, выбранный вручную (тег); "" - как в системе. */
+    private var appLanguage by mutableStateOf("")
     /** Открытый пункт настроек; null - плитки. */
     private var settingsPage by mutableStateOf<SettingsPage?>(null)
     /** Коридор активного профиля для живого графика; раскрашивается и при выключенном сигнале. */
@@ -247,6 +265,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        settingsPage?.let { outState.putString(STATE_SETTINGS_PAGE, it.name) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
@@ -269,6 +292,9 @@ class MainActivity : ComponentActivity() {
             }
         }
         themeMode = prefs.theme
+        appLanguage = currentAppLanguage()
+        // Смена языка пересоздаёт экран: остаёмся на той же странице настроек.
+        settingsPage = savedInstanceState?.getString(STATE_SETTINGS_PAGE)?.let { n -> SettingsPage.entries.firstOrNull { it.name == n } }
         granted = hasPermissions()
         if (!granted) permLauncher.launch(permissions)
         setContent {
@@ -1107,6 +1133,12 @@ class MainActivity : ComponentActivity() {
         var interval by remember { mutableStateOf(prefs.voiceIntervalMin) }
         var shake by remember { mutableStateOf(prefs.shakeEnabled) }
         val headphones = remember { voice.headphonesConnected() }
+        val lang by voice.lang.collectAsStateWithLifecycle()
+        // Вернулись из установки голоса - перепроверить.
+        LifecycleResumeEffect(Unit) {
+            voice.recheckLanguage()
+            onPauseOrDispose {}
+        }
         SettingsCard(
             stringResource(R.string.voice_title),
             stringResource(if (headphones) R.string.headphones_on else R.string.headphones_off),
@@ -1143,8 +1175,25 @@ class MainActivity : ComponentActivity() {
                     HrService.refresh(this@MainActivity)
                 })
             }
+            if (lang == VoiceLang.ENGLISH || lang == VoiceLang.NONE) {
+                Text(
+                    stringResource(if (lang == VoiceLang.ENGLISH) R.string.voice_lang_english else R.string.voice_lang_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(onClick = { installVoice(voice.enginePackage()) }) { Text(stringResource(R.string.voice_install)) }
+            }
             OutlinedButton(onClick = { voice.test(LiveHr.state.value.bpm) }) { Text(stringResource(R.string.voice_test_btn)) }
         }
+    }
+
+    /**
+     * Установка голосов у движка TTS по умолчанию (без пакета система спросит, каким из
+     * движков); если он её не поддерживает - настройки синтеза речи.
+     */
+    private fun installVoice(engine: String?) {
+        runCatching { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(engine)) }
+            .recoverCatching { startActivity(Intent("com.android.settings.TTS_SETTINGS")) }
     }
 
     @OptIn(ExperimentalLayoutApi::class)
@@ -1171,6 +1220,7 @@ class MainActivity : ComponentActivity() {
                     SettingsPage.VOICE -> VoiceSettings()
                     SettingsPage.NOTIFICATION -> NotificationSettings()
                     SettingsPage.THEME -> ThemeSettings()
+                    SettingsPage.LANGUAGE -> LanguageSettings()
                     SettingsPage.HISTORY -> HistorySettings()
                     SettingsPage.HEALTH -> HealthSettings()
                 }
@@ -1199,7 +1249,9 @@ class MainActivity : ComponentActivity() {
                     Button(onClick = ::requestBatteryUnrestricted) { Text(stringResource(R.string.battery_unrestrict)) }
                 }
             }
-            SettingsPage.entries.chunked(2).forEach { pair ->
+            // Выбор языка приложения есть в системе только с Android 13.
+            val pages = SettingsPage.entries.filter { it != SettingsPage.LANGUAGE || Build.VERSION.SDK_INT >= 33 }
+            pages.chunked(2).forEach { pair ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     pair.forEach { p -> SettingsTile(p, tileStatus(p, live), Modifier.weight(1f).fillMaxHeight()) }
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -1222,7 +1274,7 @@ class MainActivity : ComponentActivity() {
                     }
                     // Длинное название ("Health Connect") уменьшается, а не обрезается.
                     CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.titleSmall) {
-                        OneLineText(stringResource(p.title), Modifier.weight(1f))
+                        OneLineText(tileTitle(p), Modifier.weight(1f))
                     }
                 }
                 Text(
@@ -1274,6 +1326,7 @@ class MainActivity : ComponentActivity() {
                 else -> R.string.theme_system
             }
         )
+        SettingsPage.LANGUAGE -> APP_LANGUAGES.firstOrNull { it.first == appLanguage }?.second ?: systemLanguageLabel()
         SettingsPage.HISTORY -> {
             val ctx = LocalContext.current
             val count by remember { HrDb.get(ctx).dao().count() }.collectAsState(0)
@@ -1340,7 +1393,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun HealthSettings() {
-        val timeFmt = remember { SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()) }
+        val timeFmt = remember { SimpleDateFormat(dayMonthPattern() + " HH:mm", Locale.getDefault()) }
         // Отправку делает сервис; пока карточка на экране, перечитываем отметку сами.
         LaunchedEffect(Unit) {
             while (true) {
@@ -1399,6 +1452,57 @@ class MainActivity : ComponentActivity() {
                             prefs.theme = mode
                         },
                         label = { Text(stringResource(label), maxLines = 1, style = style) },
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Заголовок плитки. У языка он всегда по-английски: попавший в незнакомый язык
+     * найдёт плитку по слову "Language". Двуязычный заголовок в плитку не влезает.
+     */
+    @Composable
+    private fun tileTitle(p: SettingsPage): String =
+        if (p == SettingsPage.LANGUAGE) LANGUAGE_EN else stringResource(p.title)
+
+    /** Язык хранит система (LocaleManager): тот же выбор виден в настройках Android. */
+    private fun currentAppLanguage(): String {
+        if (Build.VERSION.SDK_INT < 33) return ""
+        val list = getSystemService(LocaleManager::class.java).applicationLocales
+        return if (list.isEmpty) "" else list[0].toLanguageTag()
+    }
+
+    /**
+     * "Системный (Русский)": слово "системный" - на текущем языке приложения, а язык
+     * системы - самоназванием, чтобы его узнал тот, кто в текущем языке не читает.
+     */
+    @Composable
+    private fun systemLanguageLabel(): String {
+        val word = stringResource(R.string.lang_system)
+        if (Build.VERSION.SDK_INT < 33) return word
+        val sys = getSystemService(LocaleManager::class.java).systemLocales
+        if (sys.isEmpty) return word
+        val own = sys[0].getDisplayLanguage(sys[0]).replaceFirstChar { it.titlecase(sys[0]) }
+        return "$word ($own)"
+    }
+
+    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    private fun LanguageSettings() {
+        SettingsCard(stringResource(R.string.lang_title), help = stringResource(R.string.lang_desc)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (listOf("" to systemLanguageLabel()) + APP_LANGUAGES).forEach { (tag, name) ->
+                    FilterChip(
+                        selected = appLanguage == tag,
+                        onClick = {
+                            if (appLanguage == tag || Build.VERSION.SDK_INT < 33) return@FilterChip
+                            appLanguage = tag
+                            // Система сама пересоздаст экран уже на новом языке.
+                            getSystemService(LocaleManager::class.java).applicationLocales =
+                                if (tag.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
+                        },
+                        label = { Text(name, maxLines = 1) },
                     )
                 }
             }

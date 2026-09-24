@@ -27,6 +27,9 @@
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
+    <string name="lang_title">Язык</string>
+    <string name="lang_system">Системный</string>
+    <string name="lang_desc">Язык приложения. "Системный" - как в телефоне. Голос в наушниках говорит на выбранном языке, если в телефоне установлен голос для него.</string>
     <string name="notif_setting_title">Пульс в уведомлении</string>
     <string name="notif_setting_on">Пульс показывается в уведомлении, на экране блокировки и в Now Bar.</string>
     <string name="notif_setting_off">Уведомление остаётся (Android требует его для фоновой работы), но свёрнуто: без пульса, без значка в строке состояния, не видно на экране блокировки и в Now Bar. При сработавшем сигнале в нём появится кнопка \"Заглушить\".</string>
@@ -159,6 +162,9 @@
     <string name="voice_no_data">Нет данных с датчика</string>
     <string name="shake_label">Встряхнуть - сказать пульс</string>
     <string name="shake_hint">Встряхните телефон несколько раз резко - голос скажет текущий пульс и скорость. Работает только с наушниками.</string>
+    <string name="voice_lang_english">Для языка приложения голос не установлен - говорю по-английски.</string>
+    <string name="voice_lang_none">Нет голоса ни для языка приложения, ни для английского - голос молчит.</string>
+    <string name="voice_install">Установить голос</string>
     <string name="voice_test_btn">Проверить голос</string>
 
     <string name="sensor_title">Датчик</string>

@@ -110,3 +110,7 @@ fun OneLineText(text: String, modifier: Modifier = Modifier) {
         autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = max),
     )
 }
+
+/** День и месяц в порядке, привычном для языка: 24.09 по-русски, 09/24 по-английски. */
+fun dayMonthPattern(): String =
+    android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "ddMM")

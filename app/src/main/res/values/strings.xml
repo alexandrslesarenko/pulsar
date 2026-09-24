@@ -28,6 +28,9 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="lang_title">Language</string>
+    <string name="lang_system">System</string>
+    <string name="lang_desc">App language. "System" follows the phone language. The voice in headphones speaks the chosen language if the phone has a voice installed for it.</string>
     <string name="notif_setting_title">Heart rate in the notification</string>
     <string name="notif_setting_on">Heart rate is shown in the notification, on the lock screen and in the Now Bar.</string>
     <string name="notif_setting_off">The notification stays (Android requires it for background work) but is collapsed: no heart rate, no status bar icon, not on the lock screen and not in the Now Bar. An alert still adds the Mute button.</string>
@@ -158,6 +161,9 @@
     <string name="voice_no_data">No data from the sensor</string>
     <string name="shake_label">Shake the phone to hear heart rate</string>
     <string name="shake_hint">Shake the phone a few times sharply and the voice says the current heart rate and speed. Works only with headphones.</string>
+    <string name="voice_lang_english">No voice installed for the app language - announcements are in English.</string>
+    <string name="voice_lang_none">No voice installed for the app language or for English - the voice stays silent.</string>
+    <string name="voice_install">Install voice</string>
     <string name="voice_test_btn">Test voice</string>
 
     <string name="sensor_title">Sensor</string>

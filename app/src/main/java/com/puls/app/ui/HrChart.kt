@@ -100,7 +100,7 @@ fun HrChart(
 
     val span = to - from
     val tipFmt = remember(span) {
-        SimpleDateFormat(if (span > 36 * 3600_000L) "dd.MM HH:mm" else "HH:mm:ss", Locale.getDefault())
+        SimpleDateFormat(if (span > 36 * 3600_000L) dayMonthPattern() + " HH:mm" else "HH:mm:ss", Locale.getDefault())
     }
 
     val visible = spans.filter { it.to > from && it.from < to }
@@ -309,7 +309,7 @@ private fun DrawScope.drawTimeAxis(
 ) {
     val tz = TimeZone.getDefault()
     val hm = SimpleDateFormat("HH:mm", Locale.getDefault())
-    val date = SimpleDateFormat("dd.MM", Locale.getDefault())
+    val date = SimpleDateFormat(dayMonthPattern(), Locale.getDefault())
     val (step, ticks) = timeTicks(from, to, tz)
     for (t in ticks) {
         val tl = measure(if (step >= DAY_MS || isMidnight(t, tz)) date.format(Date(t)) else hm.format(Date(t)))
