@@ -16,6 +16,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.BatteryManager
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
@@ -74,6 +75,8 @@ class HrService : Service(), HrListener {
     private var destroyed = false
     private var lastSampleLogAt = 0L
     private var lastContact: Boolean? = null
+    /** Последний записанный в журнал заряд телефона и признак зарядки. */
+    private var loggedPhoneBattery: Pair<Int, Boolean>? = null
 
     private val btReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -318,6 +321,7 @@ class HrService : Service(), HrListener {
             delay(FLUSH_PERIOD_MS)
             flush()
             runCatching { recordMotion() }.onFailure { Log.w(TAG, "motion record failed", it) }
+            logPhoneBattery()
             val now = SystemClock.elapsedRealtime()
             if (lastSyncAt == 0L || now - lastSyncAt >= SYNC_PERIOD_MS) {
                 lastSyncAt = now
@@ -383,6 +387,15 @@ class HrService : Service(), HrListener {
         pushWidget(force = false)
     }
 
+    /** Заряд телефона в журнал - только изменения: по ним видно, сколько тратит приложение. */
+    private fun logPhoneBattery() {
+        val bm = getSystemService(BatteryManager::class.java)
+        val now = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to bm.isCharging
+        if (now == loggedPhoneBattery) return
+        loggedPhoneBattery = now
+        Telemetry.log("pbat", now.first, now.second)
+    }
+
     /** Срез для журнала: пульс, темп шагов и что об этом думает автовыбор. */
     private fun logSample(bpm: Int, now: Long) {
         val b = alarm.bounds
@@ -396,6 +409,8 @@ class HrService : Service(), HrListener {
     }
 
     override fun onBattery(percent: Int) {
+        // Заряд датчика в журнал - только изменения: по ним видно расход в процентах в час.
+        if (percent != LiveHr.state.value.battery) Telemetry.log("bat", percent)
         LiveHr.mutable.value = LiveHr.state.value.copy(battery = percent)
     }
 

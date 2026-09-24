@@ -22,7 +22,7 @@ object Telemetry {
     private const val KEEP_DAYS = 7L
     private const val LEGEND = "# s=sample(10s): mode,auto,bpm,med,spm,kmh,target,cand,cand_s,rest_high,zone,lo,hi" +
         " | sw=auto switch: from,to,med,spm | ev=alarm event: event,bpm,lo,hi | mode=manual/UI: mode,auto" +
-        " | conn=state | contact=0/1 | svc=start/stop | mute"
+        " | conn=state | contact=0/1 | bat=sensor battery %, on change | pbat=phone battery %,charging, on change | svc=start/stop | mute"
 
     private val io = Executors.newSingleThreadExecutor()
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss")
