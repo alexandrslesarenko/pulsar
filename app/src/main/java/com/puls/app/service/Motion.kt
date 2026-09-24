@@ -10,6 +10,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.puls.app.data.MotionSample
 
@@ -61,6 +62,10 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
 
     var stepsOn = false
         private set
+    /** Счётчик зарегистрирован с короткой задержкой (для автовыбора профиля). */
+    private var stepsFast = false
+    /** Темп шагов для автовыбора профиля: считается по каждому показанию, а не раз в минуту. */
+    val cadence = Cadence()
     var gpsOn = false
         private set
 
@@ -71,10 +76,18 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
     private var gpsSum = 0.0
     private var gpsN = 0
 
-    fun startSteps() {
-        if (stepsOn || stepSensor == null) return
-        stepsOn = sm.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL, MAX_LATENCY_US)
-        Log.i(TAG, "steps on=$stepsOn")
+    /**
+     * fast - короткая задержка доставки: автовыбору профиля темп нужен сейчас, а не через
+     * полминуты. Процессор и так просыпается каждую секунду на пульс с датчика.
+     */
+    fun startSteps(fast: Boolean) {
+        if (stepSensor == null || (stepsOn && stepsFast == fast)) return
+        if (stepsOn) sm.unregisterListener(this, stepSensor)
+        stepsFast = fast
+        stepsOn = sm.registerListener(
+            this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL, if (fast) FAST_LATENCY_US else MAX_LATENCY_US,
+        )
+        Log.i(TAG, "steps on=$stepsOn fast=$fast")
     }
 
     fun stopSteps() {
@@ -83,6 +96,7 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
         stepsOn = false
         baseCount = -1
         lastCount = -1
+        cadence.clear()
     }
 
     fun startGps() {
@@ -123,6 +137,9 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
         // После перезагрузки счётчик начинается с нуля.
         if (baseCount < 0 || c < lastCount) baseCount = c
         lastCount = c
+        // timestamp события - в часах elapsedRealtime; пачка показаний приходит с опозданием.
+        val ts = System.currentTimeMillis() - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1_000_000
+        cadence.add(ts, c)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -137,6 +154,7 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
     companion object {
         private const val TAG = "Motion"
         private const val MAX_LATENCY_US = 30_000_000
+        private const val FAST_LATENCY_US = 5_000_000
         private const val GPS_INTERVAL_MS = 2_000L
     }
 }

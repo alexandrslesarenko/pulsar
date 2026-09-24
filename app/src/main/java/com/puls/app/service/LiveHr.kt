@@ -18,6 +18,10 @@ data class LiveState(
     val alarmVibrates: Boolean = false,
     /** Примерная скорость, км/ч; null - не меряется. */
     val speedKmh: Double? = null,
+    /** Активный профиль; null - сервис не запущен. Меняется и автовыбором. */
+    val profile: Profile? = null,
+    /** Границы, по которым сейчас работает сигнал: в авто они шире коридора профиля. */
+    val bounds: IntRange? = null,
 )
 
 /** Текущее состояние датчика в пределах процесса. Источник - HrService. */

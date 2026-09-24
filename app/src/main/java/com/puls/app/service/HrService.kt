@@ -58,6 +58,9 @@ class HrService : Service(), HrListener {
     private lateinit var shake: ShakeDetector
     private lateinit var motion: MotionTracker
     private lateinit var audio: AudioManager
+    private val auto = AutoProfile()
+    /** Автовыбор включён и шагомер работает: без шагов прогулку от покоя не отличить. */
+    private var autoOn = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val buffer = ArrayList<HrSample>()
@@ -69,6 +72,8 @@ class HrService : Service(), HrListener {
     private var lastWidgetAt = 0L
     private var lastTs = 0L
     private var destroyed = false
+    private var lastSampleLogAt = 0L
+    private var lastContact: Boolean? = null
 
     private val btReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -96,6 +101,8 @@ class HrService : Service(), HrListener {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
+        Telemetry.init(this)
+        Telemetry.log("svc", "start")
         nm = getSystemService(NotificationManager::class.java)
         power = getSystemService(PowerManager::class.java)
         nm.deleteNotificationChannel("hr_live")
@@ -129,10 +136,15 @@ class HrService : Service(), HrListener {
         audio.registerAudioDeviceCallback(audioCallback, null)
         alarm = HrAlarm(
             this, prefs,
-            onEvent = { e, bpm -> voice.onEvent(e, bpm) },
+            range = ::alarmRange,
+            onEvent = { e, bpm ->
+                Telemetry.log("ev", e, bpm, alarm.bounds.first, alarm.bounds.last)
+                voice.onEvent(e, bpm)
+            },
             onChange = {
                 LiveHr.mutable.value = LiveHr.state.value.copy(
                     alarm = alarm.zone, alarmMuted = alarm.muted, alarmVibrates = alarm.vibrationAllowed(),
+                    bounds = alarm.bounds,
                 )
                 notifyNow()
             },
@@ -151,10 +163,12 @@ class HrService : Service(), HrListener {
         if (intent?.action == ACTION_REFRESH) {
             updateShake()
             updateMotion()
+            updateProfile()
             notifyNow()
             return START_STICKY
         }
         if (intent?.action == ACTION_MUTE) {
+            Telemetry.log("mute")
             alarm.mute()
             return START_STICKY
         }
@@ -176,11 +190,13 @@ class HrService : Service(), HrListener {
         if (LiveHr.state.value.conn == ConnState.IDLE) client.start(address)
         updateShake()
         updateMotion()
+        updateProfile()
         return START_STICKY
     }
 
     override fun onDestroy() {
         destroyed = true
+        Telemetry.log("svc", "stop")
         unregisterReceiver(btReceiver)
         unregisterReceiver(screenReceiver)
         audio.unregisterAudioDeviceCallback(audioCallback)
@@ -219,7 +235,11 @@ class HrService : Service(), HrListener {
      */
     private fun updateMotion() {
         if (destroyed) return
-        if (prefs.stepsEnabled && granted(Manifest.permission.ACTIVITY_RECOGNITION)) motion.startSteps() else motion.stopSteps()
+        if (prefs.stepsEnabled && granted(Manifest.permission.ACTIVITY_RECOGNITION)) {
+            motion.startSteps(fast = prefs.autoProfile)
+        } else {
+            motion.stopSteps()
+        }
         val gps = prefs.profile == Profile.TRAINING && prefs.gpsInTraining && granted(Manifest.permission.ACCESS_FINE_LOCATION)
         if (gps && !motion.gpsOn) {
             // Геолокацию сервису даёт тип location; добавить его можно, пока приложение на экране.
@@ -232,6 +252,50 @@ class HrService : Service(), HrListener {
             runCatching { startFg(withLocation = false) }
         }
         if (!motion.stepsOn && !motion.gpsOn) LiveHr.mutable.value = LiveHr.state.value.copy(speedKmh = null)
+    }
+
+    /**
+     * Профиль мог смениться в UI, автовыбор - включиться или выключиться. Ручной выбор
+     * выключает автовыбор, поэтому при любой такой смене начинаем его с чистого листа.
+     */
+    private fun updateProfile() {
+        if (destroyed) return
+        val on = prefs.autoProfile && motion.stepsOn
+        if (on != autoOn || LiveHr.state.value.profile != prefs.profile) {
+            auto.reset()
+            Telemetry.log("mode", prefs.profile, on)
+        }
+        autoOn = on
+        LiveHr.mutable.value = LiveHr.state.value.copy(profile = prefs.profile)
+    }
+
+    /**
+     * Границы сигнала. Вручную - коридор профиля, жёстко. В авто профиль сам следует за
+     * пульсом, поэтому сигналим только за общими границами (ниже покоя, выше тренировки)
+     * и о высоком пульсе без движения в покое.
+     */
+    private fun alarmRange(): IntRange {
+        if (!autoActive()) return prefs.range(prefs.profile)
+        val rest = prefs.range(Profile.REST)
+        return rest.first..(if (auto.restHigh) rest.last else prefs.range(Profile.TRAINING).last)
+    }
+
+    /**
+     * Ручной выбор в UI выключает автовыбор сразу в prefs, а REFRESH до сервиса идёт позже:
+     * в этом окне автовыбор не должен перебить выбор пользователя.
+     */
+    private fun autoActive() = autoOn && prefs.autoProfile
+
+    private fun switchProfile(p: Profile) {
+        Log.i(TAG, "auto profile ${prefs.profile} -> $p")
+        Telemetry.log("sw", prefs.profile, p, auto.median, motion.cadence.spm(System.currentTimeMillis()))
+        prefs.profile = p
+        LiveHr.mutable.value = LiveHr.state.value.copy(profile = p)
+        alarm.profileSwitched()
+        voice.onProfile(p)
+        // GPS в тренировке: из фона система его не даст, но если приложение на экране - включится.
+        updateMotion()
+        scope.launch(Dispatchers.IO) { runCatching { ProfileLog.record(this@HrService) } }
     }
 
     private suspend fun recordMotion() {
@@ -268,6 +332,7 @@ class HrService : Service(), HrListener {
     }
 
     override fun onState(state: ConnState, deviceName: String?) {
+        if (state != LiveHr.state.value.conn) Telemetry.log("conn", state)
         LiveHr.mutable.value = LiveHr.state.value.let {
             it.copy(
                 conn = state,
@@ -275,6 +340,7 @@ class HrService : Service(), HrListener {
                 bpm = if (state == ConnState.CONNECTED) it.bpm else null,
             )
         }
+        if (state != ConnState.CONNECTED) auto.onGap()
         when (state) {
             ConnState.CONNECTED -> {}
             ConnState.IDLE -> alarm.reset()
@@ -287,15 +353,27 @@ class HrService : Service(), HrListener {
     override fun onMeasurement(m: HrMeasurement) {
         val now = System.currentTimeMillis()
         LiveHr.mutable.value = LiveHr.state.value.copy(bpm = m.bpm, skinContact = m.skinContact, updatedAt = now)
+        if (m.skinContact != lastContact) {
+            lastContact = m.skinContact
+            m.skinContact?.let { Telemetry.log("contact", it) }
+        }
         // Без контакта с кожей датчик шлёт мусор или 0; в историю это не пишем.
         if (m.skinContact != false && m.bpm > 0 && now > lastTs) {
             lastTs = now
             scope.launch { bufferLock.withLock { buffer += HrSample(now, m.bpm) } }
             LiveHr.recentMutable.value = LiveHr.recent.value
                 .dropWhile { it.first < now - LiveHr.RECENT_WINDOW_MS } + (now to m.bpm)
+            if (autoActive()) {
+                auto.onSample(now, m.bpm, motion.cadence.spm(now), prefs.profile, prefs::range)?.let(::switchProfile)
+            }
             alarm.onBpm(m.bpm, now)
             voice.onBpm(m.bpm, alarm.zone, now)
+            if (now - lastSampleLogAt >= SAMPLE_LOG_MS) {
+                lastSampleLogAt = now
+                logSample(m.bpm, now)
+            }
         } else {
+            auto.onGap()
             alarm.onLinkLost()
         }
         if (prefs.showInNotification && m.bpm != shownBpm) {
@@ -303,6 +381,18 @@ class HrService : Service(), HrListener {
             if (now - lastNotifyAt >= minInterval) notifyNow()
         }
         pushWidget(force = false)
+    }
+
+    /** Срез для журнала: пульс, темп шагов и что об этом думает автовыбор. */
+    private fun logSample(bpm: Int, now: Long) {
+        val b = alarm.bounds
+        val cand = auto.candidate
+        Telemetry.log(
+            "s", prefs.profile, autoActive(), bpm, auto.median,
+            if (motion.stepsOn) motion.cadence.spm(now) else null, LiveHr.state.value.speedKmh,
+            auto.target, cand, cand?.let { (now - auto.candidateSince) / 1000 }, auto.restHigh,
+            alarm.zone, b.first, b.last,
+        )
     }
 
     override fun onBattery(percent: Int) {
@@ -331,8 +421,8 @@ class HrService : Service(), HrListener {
         val title = when {
             !live -> statusText(this, s)
             s.alarm == AlarmZone.NORMAL && !show -> getString(R.string.notif_collecting)
-            s.alarm == AlarmZone.HIGH -> getString(R.string.notif_bpm_high, s.bpm, prefs.alarmHigh)
-            s.alarm == AlarmZone.LOW -> getString(R.string.notif_bpm_low, s.bpm, prefs.alarmLow)
+            s.alarm == AlarmZone.HIGH -> getString(R.string.notif_bpm_high, s.bpm, alarm.bounds.last)
+            s.alarm == AlarmZone.LOW -> getString(R.string.notif_bpm_low, s.bpm, alarm.bounds.first)
             else -> getString(R.string.notif_bpm, s.bpm)
         }
         val text = deviceLine(this, s.deviceName, s.battery)
@@ -377,6 +467,7 @@ class HrService : Service(), HrListener {
         private const val NOTIFY_SCREEN_OFF_INTERVAL_MS = 30_000L
         private const val FLUSH_PERIOD_MS = 60_000L
         private const val SYNC_PERIOD_MS = 5 * 60_000L
+        private const val SAMPLE_LOG_MS = 10_000L
         private const val ACTION_STOP = "com.puls.app.STOP"
         private const val ACTION_MUTE = "com.puls.app.MUTE"
 

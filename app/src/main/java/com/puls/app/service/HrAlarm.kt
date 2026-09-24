@@ -20,7 +20,8 @@ enum class AlarmEvent { HIGH, LOW, BACK, LOST }
  * - выше: 3 длинных импульса, пауза 5 с, повтор;
  * - ниже: 4 коротких, пауза 5 с, повтор;
  * - вернулся в коридор: 1 короткий;
- * - нет данных дольше LOST_AFTER_MS: длинный-короткий-длинный, один раз.
+ * - нет данных дольше LOST_AFTER_MS: длинный-короткий-длинный, один раз;
+ * - автовыбор сменил профиль: 2 средних, один раз.
  * Повтор идёт до возврата пульса в коридор или до mute (mute - до конца текущего выхода).
  * Выход из зоны с запасом HYSTERESIS, чтобы пульс у самой границы не дёргал сигнал.
  *
@@ -30,6 +31,8 @@ enum class AlarmEvent { HIGH, LOW, BACK, LOST }
 class HrAlarm(
     context: Context,
     private val prefs: Prefs,
+    /** Границы сигнала: коридор профиля, а в авто - общие границы (см. AutoProfile). */
+    private val range: () -> IntRange,
     private val onEvent: (AlarmEvent, Int?) -> Unit,
     private val onChange: () -> Unit,
 ) {
@@ -40,6 +43,9 @@ class HrAlarm(
     var zone = AlarmZone.NORMAL
         private set
     var muted = false
+        private set
+    /** Границы, по которым считался последний замер. */
+    var bounds: IntRange = range()
         private set
 
     private var candidate = AlarmZone.NORMAL
@@ -73,9 +79,13 @@ class HrAlarm(
             vibrating = false
             vibrator.cancel()
         }
-        val range = prefs.range(prefs.profile)
-        val high = range.last
-        val low = range.first
+        val r = range()
+        if (r != bounds) {
+            bounds = r
+            onChange()
+        }
+        val high = r.last
+        val low = r.first
         val target = when {
             bpm > high -> AlarmZone.HIGH
             bpm < low -> AlarmZone.LOW
@@ -142,6 +152,18 @@ class HrAlarm(
         onChange()
     }
 
+    /**
+     * Автовыбор сменил профиль: сигнал о прежнем коридоре молча снимаем (иначе будет ложное
+     * "выше" или "в норме") и даём знать о смене - вибрацией нового профиля.
+     */
+    fun profileSwitched() {
+        candidate = AlarmZone.NORMAL
+        bounds = range()
+        setZone(AlarmZone.NORMAL, silent = true)
+        play(SWITCH, repeat = false)
+        onChange()
+    }
+
     /** Сбор остановлен пользователем: молча забываем всё. */
     fun reset() {
         main.removeCallbacks(lostTimer)
@@ -190,5 +212,6 @@ class HrAlarm(
         private val LOW = longArrayOf(0, 100, 100, 100, 100, 100, 100, 100, 5_000)
         private val BACK = longArrayOf(0, 150)
         private val LOST = longArrayOf(0, 600, 200, 150, 200, 600)
+        private val SWITCH = longArrayOf(0, 300, 200, 300)
     }
 }

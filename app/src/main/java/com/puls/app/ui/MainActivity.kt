@@ -108,6 +108,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -118,7 +119,13 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import com.puls.app.ble.ConnState
 import com.puls.app.ble.FoundDevice
 import com.puls.app.ble.HrScanner
@@ -197,6 +204,9 @@ class MainActivity : ComponentActivity() {
     /** Возраст из даты рождения; общий для карточки даты и карточки коридора. */
     private var age by mutableStateOf<Int?>(null)
     private var profile by mutableStateOf(Profile.REST)
+    private var autoProfile by mutableStateOf(false)
+    /** Копия prefs.stepsEnabled для экрана: от неё зависит, доступно ли "Авто". */
+    private var stepsEnabled by mutableStateOf(false)
     private var themeMode by mutableStateOf(Prefs.THEME_SYSTEM)
     /** Открытый пункт настроек; null - плитки. */
     private var settingsPage by mutableStateOf<SettingsPage?>(null)
@@ -217,6 +227,7 @@ class MainActivity : ComponentActivity() {
     private val stepsLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         stepsGranted = ok
         prefs.stepsEnabled = ok
+        stepsEnabled = ok
         HrService.refresh(this)
     }
 
@@ -241,7 +252,22 @@ class MainActivity : ComponentActivity() {
         prefs = Prefs(this)
         age = prefs.age
         profile = prefs.profile
+        autoProfile = prefs.autoProfile
+        stepsEnabled = prefs.stepsEnabled
         corridorChanged()
+        // Автовыбор меняет профиль в сервисе; экран узнаёт об этом из LiveHr.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Только смены профиля: на каждом замере старое значение из сервиса
+                // откатило бы только что нажатый вручную профиль.
+                LiveHr.state.map { it.profile }.distinctUntilChanged().collect { p ->
+                    if (p != null && p != profile) {
+                        profile = p
+                        corridor = prefs.range(p)
+                    }
+                }
+            }
+        }
         themeMode = prefs.theme
         granted = hasPermissions()
         if (!granted) permLauncher.launch(permissions)
@@ -267,6 +293,8 @@ class MainActivity : ComponentActivity() {
         batteryUnrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
         released = prefs.released
         stepsGranted = has(Manifest.permission.ACTIVITY_RECOGNITION)
+        profile = prefs.profile
+        corridor = prefs.range(profile)
         locationGranted = has(Manifest.permission.ACCESS_FINE_LOCATION)
         promotedAllowed = Build.VERSION.SDK_INT < 36 ||
             getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
@@ -420,7 +448,14 @@ class MainActivity : ComponentActivity() {
             }
             if (live.alarm != AlarmZone.NORMAL) AlarmBanner(live)
             LivePanel(live)
-            ProfileChips(profile, onSelect = ::activate)
+            MainProfileChips()
+            if (!stepsAvailable()) {
+                Text(
+                    stringResource(R.string.profile_auto_no_steps),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 stringResource(R.string.last_5_min),
                 style = MaterialTheme.typography.titleSmall,
@@ -491,7 +526,8 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun AlarmBanner(s: LiveState) {
         val high = s.alarm == AlarmZone.HIGH
-        val text = if (high) stringResource(R.string.alarm_above, prefs.alarmHigh) else stringResource(R.string.alarm_below, prefs.alarmLow)
+        val b = s.bounds ?: prefs.range(profile)
+        val text = if (high) stringResource(R.string.alarm_above, b.last) else stringResource(R.string.alarm_below, b.first)
         Card(
             Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -526,21 +562,73 @@ class MainActivity : ComponentActivity() {
     @Composable
     /**
      * Кнопки профилей; размер подписей подбирает FitRow, чтобы все три встали в строку.
+     * auto - профиль выбран автоматически: подпись выбранного чипа цветом профиля.
+     * Цвет, а не значок: значок расширяет чип, и ряд уходит на шрифт мельче.
      */
-    private fun ProfileChips(selected: Profile, onSelect: (Profile) -> Unit) {
+    private fun ProfileChips(selected: Profile, auto: Boolean = false, onSelect: (Profile) -> Unit) {
         FitRow { style ->
             Profile.entries.forEach { p ->
                 FilterChip(
                     selected = selected == p,
                     onClick = { onSelect(p) },
-                    label = { Text(stringResource(p.label), maxLines = 1, style = style) },
+                    label = {
+                        Text(
+                            stringResource(p.label), maxLines = 1, style = style,
+                            color = if (auto && selected == p) {
+                                profileTextColor(p, dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f)
+                            } else {
+                                Color.Unspecified
+                            },
+                        )
+                    },
                 )
             }
         }
     }
 
-    /** Активация профиля - только с главного экрана; в настройках профиль лишь редактируется. */
+    /**
+     * Главный экран: чипы показывают активный профиль, переключатель под ними - автовыбор.
+     * "Авто" отдельным переключателем, а не четвёртым чипом: четыре чипа при крупном
+     * шрифте в строку не встают, да и это режим, а не профиль.
+     */
+    @Composable
+    private fun MainProfileChips() {
+        val available = stepsAvailable()
+        val auto = autoProfile && available
+        ProfileChips(profile, auto = auto, onSelect = ::activate)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(if (auto) R.string.profile_auto_on else R.string.profile_auto_off),
+                Modifier.weight(1f),
+                color = if (available) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Switch(checked = auto, enabled = available, onCheckedChange = { if (it) enableAuto() else disableAuto() })
+        }
+    }
+
+    /** Автовыбору нужен шагомер: без шагов прогулку от покоя не отличить. */
+    private fun stepsAvailable(): Boolean = stepsEnabled && stepsGranted &&
+        getSystemService(SensorManager::class.java).getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null
+
+    private fun enableAuto() {
+        if (autoProfile) return
+        prefs.autoProfile = true
+        autoProfile = true
+        HrService.refresh(this)
+    }
+
+    /** Выключили автовыбор: остаётся профиль, который он выбрал последним. */
+    private fun disableAuto() {
+        activate(profile)
+    }
+
+    /**
+     * Активация профиля - только с главного экрана; в настройках профиль лишь редактируется.
+     * Ручной выбор выключает автовыбор: взял управление - значит, сам.
+     */
     private fun activate(p: Profile) {
+        prefs.autoProfile = false
+        autoProfile = false
         prefs.profile = p
         profile = p
         corridorChanged()
@@ -573,7 +661,8 @@ class MainActivity : ComponentActivity() {
         }
         SettingsCard(
             stringResource(R.string.alarm_title),
-            help = stringResource(R.string.alarm_desc) + "\n\n" + stringResource(R.string.profile_hint),
+            help = stringResource(R.string.alarm_desc) + "\n\n" + stringResource(R.string.profile_hint) +
+                "\n\n" + stringResource(R.string.profile_auto_hint),
             helpExtra = { ZonesTable(age) },
         ) {
             ProfileChips(p) { p = it }
@@ -677,6 +766,7 @@ class MainActivity : ComponentActivity() {
                         stepsLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
                     } else {
                         prefs.stepsEnabled = it
+                        stepsEnabled = it
                         HrService.refresh(this@MainActivity)
                     }
                 })

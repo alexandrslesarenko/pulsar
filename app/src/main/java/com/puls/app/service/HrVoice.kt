@@ -104,6 +104,12 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         say(text)
     }
 
+    /** Автовыбор сменил профиль. */
+    fun onProfile(p: Profile) {
+        lastPeriodicAt = System.currentTimeMillis()
+        say(context.getString(R.string.voice_profile, context.getString(p.label)))
+    }
+
     /** Вызывается на каждом измерении; сама решает, пора ли проговорить текущий пульс. */
     fun onBpm(bpm: Int, zone: AlarmZone, now: Long) {
         val interval = prefs.voiceIntervalMin * 60_000L

@@ -71,6 +71,11 @@ class Prefs(context: Context) {
         get() = Profile.byKey(sp.getString("profile", null)) ?: Profile.REST
         set(v) = sp.edit().putString("profile", v.key).apply()
 
+    /** Профиль выбирается сам по пульсу и шагам; ручной выбор профиля его выключает. */
+    var autoProfile: Boolean
+        get() = sp.getBoolean("auto_profile", false)
+        set(v) = sp.edit().putBoolean("auto_profile", v).apply()
+
     /** Коридор профиля. У прогулки в режиме "авто" он считается от возраста. */
     fun range(p: Profile): IntRange {
         val a = age
