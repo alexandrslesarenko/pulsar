@@ -177,15 +177,15 @@ private val LocalSettingsBack = compositionLocalOf<(() -> Unit)?> { null }
 private enum class SettingsPage(@StringRes val title: Int, @DrawableRes val icon: Int, val color: Color) {
     SENSOR(R.string.sensor_title, R.drawable.ic_set_bluetooth, Color(0xFF3F8FE8)),
     ABOUT(R.string.about_title, R.drawable.ic_set_person, Color(0xFF26A69A)),
-    SPEED(R.string.speed_title, R.drawable.ic_set_directions_run, Color(0xFF3BA55C)),
-    ALARM(R.string.tile_alarm_title, R.drawable.ic_set_monitor_heart, Color(0xFFE5484D)),
+    SPEED(R.string.steps_speed_title, R.drawable.ic_set_directions_run, Color(0xFF3BA55C)),
+    MODES(R.string.tile_modes_title, R.drawable.ic_set_monitor_heart, Color(0xFFE5484D)),
     NIGHT(R.string.tile_night_title, R.drawable.ic_set_bedtime, Color(0xFF8E6BE0)),
     VOICE(R.string.tile_voice_title, R.drawable.ic_set_headphones, Color(0xFFE8912D)),
     NOTIFICATION(R.string.tile_notif_title, R.drawable.ic_set_notifications, Color(0xFFD4A20F)),
     THEME(R.string.theme_title, R.drawable.ic_set_palette, Color(0xFF00A5B8)),
-    LANGUAGE(R.string.lang_title, R.drawable.ic_set_language, Color(0xFF5C6BC0)),
-    HISTORY(R.string.history_title, R.drawable.ic_set_history, Color(0xFF7D8FA3)),
     HEALTH(R.string.tile_hc_title, R.drawable.ic_set_favorite, Color(0xFFE0457B)),
+    HISTORY(R.string.transfer_title, R.drawable.ic_set_history, Color(0xFF7D8FA3)),
+    LANGUAGE(R.string.lang_title, R.drawable.ic_set_language, Color(0xFF5C6BC0)),
 }
 private val ZONE_BADGE_COLUMN = 48.dp
 /**
@@ -488,7 +488,8 @@ class MainActivity : ComponentActivity() {
             MainProfileChips()
             if (!stepsAvailable()) {
                 Text(
-                    stringResource(R.string.profile_auto_no_steps),
+                    if (hasStepSensor()) stringResource(R.string.profile_auto_no_steps, stringResource(R.string.steps_speed_title))
+                    else stringResource(R.string.profile_auto_no_sensor),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -644,7 +645,10 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Автовыбору нужен шагомер: без шагов прогулку от покоя не отличить. */
-    private fun stepsAvailable(): Boolean = stepsEnabled && stepsGranted &&
+    private fun stepsAvailable(): Boolean = stepsEnabled && stepsGranted && hasStepSensor()
+
+    /** Без шагомера в телефоне включать нечего - и подсказка тогда другая. */
+    private fun hasStepSensor(): Boolean =
         getSystemService(SensorManager::class.java).getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null
 
     private fun enableAuto() {
@@ -680,7 +684,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalLayoutApi::class)
     @Composable
-    private fun AlarmSettings() {
+    private fun ModeSettings() {
         // Какой профиль редактируем; открываем активный, но выбор здесь его не активирует.
         var p by remember { mutableStateOf(profile) }
         var enabled by remember(p) { mutableStateOf(prefs.alarmEnabled(p)) }
@@ -701,9 +705,9 @@ class MainActivity : ComponentActivity() {
             corridorChanged(log)
         }
         SettingsCard(
-            stringResource(R.string.alarm_title),
-            help = stringResource(R.string.alarm_desc) + "\n\n" + stringResource(R.string.profile_hint) +
-                "\n\n" + stringResource(R.string.profile_auto_hint),
+            stringResource(R.string.tile_modes_title),
+            help = stringResource(R.string.profile_hint) + "\n\n" + stringResource(R.string.alarm_title) + "\n" +
+                stringResource(R.string.alarm_desc) + "\n\n" + stringResource(R.string.profile_auto_hint),
             helpExtra = { ZonesTable(age) },
         ) {
             ProfileChips(p) { p = it }
@@ -774,7 +778,7 @@ class MainActivity : ComponentActivity() {
                 }
                 if (a == null) {
                     Text(
-                        stringResource(R.string.walk_auto_need_birth),
+                        stringResource(R.string.walk_auto_need_birth, stringResource(R.string.about_title)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -803,7 +807,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.vibrate_label), Modifier.weight(1f))
+                Text(stringResource(if (vibrate) R.string.vibrate_on else R.string.vibrate_off), Modifier.weight(1f))
                 Switch(checked = vibrate, enabled = enabled, onCheckedChange = {
                     vibrate = it
                     prefs.setVibrate(p, it)
@@ -816,9 +820,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SpeedSettings() {
         var on by remember { mutableStateOf(prefs.stepsEnabled) }
-        SettingsCard(stringResource(R.string.speed_title), help = stringResource(R.string.speed_desc)) {
+        SettingsCard(stringResource(R.string.steps_speed_title), help = stringResource(R.string.speed_desc)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // Переключатель - только шагомер: GPS в тренировке включается в карточке сигнала.
+                // Переключатель - только шагомер: GPS в тренировке включается на странице режимов.
                 Text(stringResource(if (on && stepsGranted) R.string.steps_on else R.string.steps_off), Modifier.weight(1f))
                 Switch(checked = on && stepsGranted, onCheckedChange = {
                     on = it
@@ -843,7 +847,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun NightSettings() {
-        var on by remember { mutableStateOf(prefs.nightQuiet) }
+        var quiet by remember { mutableStateOf(prefs.nightQuiet) }
         var from by remember { mutableStateOf(prefs.nightFrom) }
         var to by remember { mutableStateOf(prefs.nightTo) }
         fun hm(min: Int) = "%02d:%02d".format(min / 60, min % 60)
@@ -856,11 +860,12 @@ class MainActivity : ComponentActivity() {
         }
         // Часы ночи общие: по ним и тишина вибрации, и граница сна, поэтому правятся всегда.
         SettingsCard(stringResource(R.string.tile_night_title), help = stringResource(R.string.night_desc)) {
+            // Переключатель показывает вибрацию, а не тишину: включённый "Без вибрации" читался наоборот.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(if (on) R.string.night_quiet_on else R.string.night_quiet_off), Modifier.weight(1f))
-                Switch(checked = on, onCheckedChange = {
-                    on = it
-                    prefs.nightQuiet = it
+                Text(stringResource(if (quiet) R.string.night_vibrate_off else R.string.night_vibrate_on), Modifier.weight(1f))
+                Switch(checked = !quiet, onCheckedChange = {
+                    quiet = !it
+                    prefs.nightQuiet = !it
                 })
             }
             for (isFrom in listOf(true, false)) {
@@ -954,7 +959,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         SettingsCard(
-            stringResource(R.string.history_title),
+            stringResource(R.string.transfer_title),
             stringResource(R.string.history_count, count),
             help = stringResource(R.string.history_help),
         ) {
@@ -1281,7 +1286,7 @@ class MainActivity : ComponentActivity() {
                     SettingsPage.SENSOR -> SensorSettings(onChangeDevice)
                     SettingsPage.ABOUT -> AboutSettings()
                     SettingsPage.SPEED -> SpeedSettings()
-                    SettingsPage.ALARM -> AlarmSettings()
+                    SettingsPage.MODES -> ModeSettings()
                     SettingsPage.NIGHT -> NightSettings()
                     SettingsPage.VOICE -> VoiceSettings()
                     SettingsPage.NOTIFICATION -> NotificationSettings()
@@ -1338,9 +1343,9 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Icon(painterResource(p.icon), null, tint = p.color, modifier = Modifier.size(20.dp))
                     }
-                    // Длинное название ("Health Connect") уменьшается, а не обрезается.
+                    // Длинное название ("Health Connect") уменьшается, слишком длинное переносится.
                     CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.titleSmall) {
-                        OneLineText(tileTitle(p), Modifier.weight(1f))
+                        TileTitle(tileTitle(p), Modifier.weight(1f))
                     }
                 }
                 Text(
@@ -1385,7 +1390,10 @@ class MainActivity : ComponentActivity() {
                 else -> stringResource(R.string.tile_speed_off)
             }
         }
-        SettingsPage.ALARM -> prefs.range(profile).let { r ->
+        // При автовыборе сигнал идёт по общим границам, коридор режима тут ничего не скажет.
+        SettingsPage.MODES -> if (autoProfile && stepsAvailable()) {
+            stringResource(R.string.tile_modes_auto, stringResource(profile.label))
+        } else prefs.range(profile).let { r ->
             if (prefs.alarmEnabled(profile)) stringResource(R.string.tile_alarm, stringResource(profile.label), r.first, r.last)
             else stringResource(R.string.tile_alarm_off, stringResource(profile.label))
         }
@@ -1486,7 +1494,7 @@ class MainActivity : ComponentActivity() {
                     else stringResource(R.string.hc_nothing_sent)
                 else -> stringResource(R.string.hc_offer)
             }
-            SettingsCard("Health Connect", hcText) {
+            SettingsCard(stringResource(R.string.tile_hc_title), hcText) {
                 if (HealthSync.isAvailable(this@MainActivity)) {
                     if (hcEnabled && hcGranted) {
                         FitRow { style ->

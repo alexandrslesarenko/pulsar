@@ -98,7 +98,7 @@
     <string name="zone4_desc">Hart: nur einzelne Wörter, nicht lange durchzuhalten.</string>
     <string name="zone5_desc">Maximal: kurze Belastungen, Sprints.</string>
     <string name="zones_note">Der Gehbereich nach Alter ist Zone 2; Training ist standardmäßig 70-85% (Zonen 3-4). Das Maximum wird als 220 minus Alter geschätzt und kann bei einzelnen Menschen um 10-15 Schläge abweichen, daher lassen sich die Bereiche von Hand anpassen.</string>
-    <string name="history_title">Verlauf</string>
+    <string name="transfer_title">Export und Import</string>
     <string name="history_count">%1$d Einträge auf diesem Telefon.</string>
     <string name="history_help">Der Export speichert den gesamten Verlauf in eine Datei (CSV in gzip); der Import fügt Einträge aus einer solchen Datei oder aus einer für einen Zeitraum exportierten CSV hinzu, ohne Duplikate. Importierte Einträge werden nicht an Health Connect gesendet.</string>
     <string name="help_toggle">Erklärung</string>
@@ -124,16 +124,18 @@
     <string name="profile_active_note">Aktiv: %1$s. Der Modus wird auf dem Hauptbildschirm gewechselt.</string>
     <string name="profile_auto_on">Automodus an</string>
     <string name="profile_auto_off">Automodus aus</string>
-    <string name="profile_auto_no_steps">Der Automodus braucht den Schrittzähler: Schalten Sie die Geschwindigkeit nach Schritten in den Einstellungen ein.</string>
+    <string name="profile_auto_no_steps">Der Automodus braucht den Schrittzähler: Schalten Sie ihn in den Einstellungen unter \"%1$s\" ein.</string>
+    <string name="profile_auto_no_sensor">Dieses Telefon hat keinen Schrittzähler, daher ist der Automodus nicht verfügbar.</string>
     <string name="profile_auto_hint">Der Automodus auf dem Hauptbildschirm wählt den Modus selbst. Ruhe - Sie stehen still, die Herzfrequenz liegt im Ruhebereich. Gehen - Schritte, aber kein Laufen. Training - Herzfrequenz im Trainingsbereich bei Bewegung oder Lauftempo; ein begonnenes Training bleibt auch im Stehen. Ohne Schritte ändert eine hohe Herzfrequenz (Hausarbeit, Spielen) den Modus nicht. Der Wechsel wird über die Kopfhörer angesagt und mit zwei Vibrationsimpulsen gemeldet (nach der Vibrationseinstellung des neuen Modus). Ein Wechsel muss 1-3 Minuten anhalten, danach bleibt der Modus mindestens 3 Minuten. Stehen Sie still und liegt die Herzfrequenz zwischen den Bereichen (z. B. Erholung nach einem Spaziergang), ändert sich der Modus nicht. Im Automodus gibt es Alarm nur außerhalb der Gesamtgrenzen - unter Ruhe und über Training - und wenn die Herzfrequenz 2 Minuten ohne Bewegung über dem Ruhebereich liegt. Das Tippen auf einen Modus schaltet den Automodus aus, und dessen Bereich wird wieder streng überwacht.</string>
-    <string name="walk_auto">Automatisch nach Alter (60-70% vom Max.)</string>
-    <string name="walk_auto_need_birth">Geben Sie Ihr Geburtsdatum ein, um die Automatik zu nutzen.</string>
-    <string name="vibrate_label">Vibration</string>
-    <string name="night_desc">Nacht - diese Stunden. Mit \"Ohne Vibration\" vibrieren Alarme nachts und bei \"Nicht stören\" nicht; die Sprachausgabe über Kopfhörer bleibt. Schlaf - die Nacht und der Morgen bis zu den ersten Schritten (höchstens 3 h): Im Ruhemodus meldet sich der Alarm \"unter\" im Schlaf nur unter seiner eigenen Grenze, denn eine niedrigere Herzfrequenz im Schlaf ist normal.</string>
+    <string name="walk_auto">Bereich nach Alter (Zone 2)</string>
+    <string name="walk_auto_need_birth">Für den Bereich nach Alter geben Sie Ihr Geburtsdatum unter \"%1$s\" ein.</string>
+    <string name="vibrate_on">Vibration an</string>
+    <string name="vibrate_off">Vibration aus</string>
+    <string name="night_desc">Nacht - diese Stunden. Ist die Vibration nachts aus, vibrieren Alarme nachts und bei \"Nicht stören\" nicht; die Sprachausgabe über Kopfhörer bleibt. Schlaf - die Nacht und der Morgen bis zu den ersten Schritten (höchstens 3 h): Im Ruhemodus meldet sich der Alarm \"unter\" im Schlaf nur unter seiner eigenen Grenze, denn eine niedrigere Herzfrequenz im Schlaf ist normal.</string>
     <string name="night_from">Von %1$s</string>
     <string name="night_to">Bis %1$s</string>
-    <string name="speed_title">Geschwindigkeit</string>
-    <string name="speed_desc">Ungefähre Geschwindigkeit über den Schrittzähler: Schrittfrequenz x Schrittlänge nach Körpergröße. Gut für Gehen und Laufen; funktioniert nicht auf dem Fahrrad oder im Fahrzeug. Der Schrittzähler verbraucht fast keinen Akku.</string>
+    <string name="steps_speed_title">Schritte und Tempo</string>
+    <string name="speed_desc">Ungefähre Geschwindigkeit über den Schrittzähler: Schrittfrequenz x Schrittlänge nach Körpergröße. Gut für Gehen und Laufen; funktioniert nicht auf dem Fahrrad oder im Fahrzeug. Der Schrittzähler verbraucht fast keinen Akku. Auch der Automodus nutzt den Schrittzähler.</string>
     <string name="gps_training">Geschwindigkeit per GPS</string>
     <string name="gps_hint">Genauer als der Schrittzähler und funktioniert auf dem Fahrrad, verbraucht aber spürbar mehr Akku. Nur in diesem Modus.</string>
     <string name="speed_now">~%1$.1f km/h</string>
@@ -197,7 +199,7 @@
     <string name="show_hr_only">Nur Herzfrequenzsensoren zeigen</string>
     <string name="hr_sensor_prefix">Herzfrequenzsensor,</string>
     <string name="back">Zurück</string>
-    <string name="tile_alarm_title">Alarm</string>
+    <string name="tile_modes_title">Modi</string>
     <string name="tile_night_title">Nacht</string>
     <string name="tile_voice_title">Stimme</string>
     <string name="tile_notif_title">Benachrichtigung</string>
@@ -210,7 +212,8 @@
     <string name="tile_speed_steps">Schrittzähler</string>
     <string name="tile_speed_gps">Schrittzähler, GPS im Training</string>
     <string name="tile_alarm">%1$s: %2$d-%3$d</string>
-    <string name="tile_alarm_off">%1$s: aus</string>
+    <string name="tile_alarm_off">%1$s: Alarm aus</string>
+    <string name="tile_modes_auto">Automodus: %1$s</string>
     <string name="tile_voice_events">Nur Bereichsverlassen</string>
     <string name="tile_voice_every">Alle %1$d min</string>
     <string name="tile_notif_on">Zeigt Herzfrequenz</string>
@@ -233,7 +236,7 @@
     <string name="corridor_default">Standard</string>
     <string name="scan_failed">Das Telefon hat die Suche abgelehnt. Warten Sie eine halbe Minute und tippen Sie auf \"Erneut suchen\".</string>
     <string name="scan_again">Erneut suchen</string>
-    <string name="night_quiet_on">Ohne Vibration</string>
-    <string name="night_quiet_off">Mit Vibration</string>
+    <string name="night_vibrate_on">Vibration nachts an</string>
+    <string name="night_vibrate_off">Vibration nachts aus</string>
     <string name="sleep_low">Im Schlaf Alarm unter %1$d</string>
 </resources>

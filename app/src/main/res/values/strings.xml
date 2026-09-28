@@ -99,7 +99,7 @@
     <string name="zone4_desc">Hard: only single words, cannot be sustained for long.</string>
     <string name="zone5_desc">Maximum: short bursts, sprints.</string>
     <string name="zones_note">The walk range from age is zone 2; training by default is 70-85%, i.e. zones 3-4. Max is estimated as 220 minus age and may differ by 10-15 beats for a given person, so ranges can be adjusted manually.</string>
-    <string name="history_title">History</string>
+    <string name="transfer_title">Export and import</string>
     <string name="history_count">%1$d records on this phone.</string>
     <string name="history_help">Export saves the whole history to one file (CSV in gzip); import adds records from such a file, or from a CSV exported for a period, without duplicates. Imported records are not sent to Health Connect.</string>
     <string name="help_toggle">Explanation</string>
@@ -125,16 +125,18 @@
     <string name="profile_active_note">Active now: %1$s. Switch modes on the main screen.</string>
     <string name="profile_auto_on">Auto mode on</string>
     <string name="profile_auto_off">Auto mode off</string>
-    <string name="profile_auto_no_steps">Auto mode needs the step counter: turn on speed by steps in settings.</string>
+    <string name="profile_auto_no_steps">Auto mode needs the step counter: turn it on in Settings, \"%1$s\".</string>
+    <string name="profile_auto_no_sensor">This phone has no step counter, so auto mode is unavailable.</string>
     <string name="profile_auto_hint">Auto mode on the main screen picks the mode by itself. Rest - standing still with heart rate in the rest range. Walk - steps without running. Training - heart rate in the training range while moving, or running pace; once started, training holds while standing too. Without steps a high heart rate (housework, gaming) does not change the mode. The switch is announced in headphones and by two vibration pulses (per the new mode\'s vibration setting). A change must hold for 1-3 minutes, and after a switch the mode stays for at least 3 minutes. While standing with heart rate between ranges (e.g. recovering after a walk), the mode does not change. In auto mode the alert fires only beyond the overall limits - below rest and above training - and when heart rate stays above the rest range without movement for 2 minutes. Tapping a mode turns auto mode off, and its range is then enforced strictly.</string>
-    <string name="walk_auto">Auto from age (60-70% of max)</string>
-    <string name="walk_auto_need_birth">Set your date of birth to use auto.</string>
-    <string name="vibrate_label">Vibration</string>
-    <string name="night_desc">Night - these hours. With \"No vibration\" on, alerts do not vibrate at night or while Do Not Disturb is on; voice in headphones stays. Sleep - the night plus the morning until your first steps (at most 3 h): in Rest mode the \"below\" alert during sleep fires only under its own limit, since a sleeping heart rate below the daytime one is normal.</string>
+    <string name="walk_auto">Range from age (zone 2)</string>
+    <string name="walk_auto_need_birth">To use the range from age, set your date of birth in \"%1$s\".</string>
+    <string name="vibrate_on">Vibration on</string>
+    <string name="vibrate_off">Vibration off</string>
+    <string name="night_desc">Night - these hours. With vibration at night off, alerts do not vibrate at night or while Do Not Disturb is on; voice in headphones stays. Sleep - the night plus the morning until your first steps (at most 3 h): in Rest mode the \"below\" alert during sleep fires only under its own limit, since a sleeping heart rate below the daytime one is normal.</string>
     <string name="night_from">From %1$s</string>
     <string name="night_to">Until %1$s</string>
-    <string name="speed_title">Speed</string>
-    <string name="speed_desc">Approximate speed from the step counter: step rate x step length from your height. Good for walking and running; does not work on a bike or in a vehicle. The step counter uses almost no battery.</string>
+    <string name="steps_speed_title">Steps and speed</string>
+    <string name="speed_desc">Approximate speed from the step counter: step rate x step length from your height. Good for walking and running; does not work on a bike or in a vehicle. The step counter uses almost no battery. Auto mode also relies on the step counter.</string>
     <string name="gps_training">Speed from GPS</string>
     <string name="gps_hint">More accurate than the step counter and works on a bike, but uses noticeably more battery. Only in this mode.</string>
     <string name="speed_now">~%1$.1f km/h</string>
@@ -198,7 +200,7 @@
     <string name="show_hr_only">Show heart rate sensors only</string>
     <string name="hr_sensor_prefix">heart rate sensor, </string>
     <string name="back">Back</string>
-    <string name="tile_alarm_title">Alert</string>
+    <string name="tile_modes_title">Modes</string>
     <string name="tile_night_title">Night</string>
     <string name="tile_voice_title">Voice</string>
     <string name="tile_notif_title">Notification</string>
@@ -211,7 +213,8 @@
     <string name="tile_speed_steps">Step counter</string>
     <string name="tile_speed_gps">Step counter, GPS in training</string>
     <string name="tile_alarm">%1$s: %2$d-%3$d</string>
-    <string name="tile_alarm_off">%1$s: off</string>
+    <string name="tile_alarm_off">%1$s: alert off</string>
+    <string name="tile_modes_auto">Auto: %1$s</string>
     <string name="tile_voice_events">Range exits only</string>
     <string name="tile_voice_every">Every %1$d min</string>
     <string name="tile_notif_on">Shows heart rate</string>
@@ -234,7 +237,7 @@
     <string name="corridor_default">Default</string>
     <string name="scan_failed">The phone refused to search. Wait half a minute and tap \"Search again\".</string>
     <string name="scan_again">Search again</string>
-    <string name="night_quiet_on">No vibration</string>
-    <string name="night_quiet_off">Vibration on</string>
+    <string name="night_vibrate_on">Vibration at night on</string>
+    <string name="night_vibrate_off">Vibration at night off</string>
     <string name="sleep_low">In sleep, alert below %1$d</string>
 </resources>

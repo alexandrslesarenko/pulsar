@@ -98,7 +98,7 @@
     <string name="zone4_desc">きつい：単語しか話せず、長くは続かない。</string>
     <string name="zone5_desc">最大：短時間の全力、スプリント。</string>
     <string name="zones_note">年齢によるウォーキングの範囲はゾーン2、トレーニングの既定値は70-85%、つまりゾーン3-4です。最大心拍数は220から年齢を引いて推定しており、個人差が10-15拍あるため、範囲は手動で調整できます。</string>
-    <string name="history_title">履歴</string>
+    <string name="transfer_title">エクスポートとインポート</string>
     <string name="history_count">このスマートフォンに %1$d 件の記録があります。</string>
     <string name="history_help">エクスポートは履歴全体を1つのファイル（gzip の CSV）に保存します。インポートはそのようなファイル、または期間ごとにエクスポートした CSV から、重複なしで記録を追加します。インポートした記録は Health Connect には送信されません。</string>
     <string name="help_toggle">説明</string>
@@ -124,16 +124,18 @@
     <string name="profile_active_note">現在のモード：%1$s。モードはメイン画面で切り替えます。</string>
     <string name="profile_auto_on">自動モード オン</string>
     <string name="profile_auto_off">自動モード オフ</string>
-    <string name="profile_auto_no_steps">自動モードには歩数計が必要です：設定で歩数による速度をオンにしてください。</string>
+    <string name="profile_auto_no_steps">自動モードには歩数計が必要です：設定の \"%1$s\" でオンにしてください。</string>
+    <string name="profile_auto_no_sensor">この端末には歩数計がないため、自動モードは使えません。</string>
     <string name="profile_auto_hint">メイン画面の自動モードは、モードを自動で選びます。安静 - 静止していて、心拍数が安静の範囲内。ウォーキング - 歩いているが走っていない。トレーニング - 動いている間に心拍数がトレーニングの範囲内、または走るペース。始まったトレーニングは静止中も続きます。歩数がなければ、高い心拍数（家事、ゲームなど）ではモードは変わりません。切り替えはイヤホンの音声と2回の振動で知らせます（新しいモードの振動設定に従います）。切り替えは1-3分続いて確定し、切り替え後は少なくとも3分間モードが変わりません。静止していて心拍数が範囲と範囲の間にある場合（ウォーキング後の回復中など）は、モードは変わりません。自動モードでは、全体の限界 - 安静の下限より下とトレーニングの上限より上 - を超えたとき、および静止したまま心拍数が安静の範囲を2分間上回ったときだけアラートが鳴ります。モードをタップすると自動モードはオフになり、そのモードの範囲が再び厳密に監視されます。</string>
-    <string name="walk_auto">年齢から自動（最大の60-70%）</string>
-    <string name="walk_auto_need_birth">自動を使うには生年月日を入力してください。</string>
-    <string name="vibrate_label">振動</string>
-    <string name="night_desc">夜 - この時間帯です。\"振動なし\" がオンのとき、夜間と \"サイレントモード\" の間はアラートが振動しません。イヤホンの音声はそのままです。睡眠 - 夜と、最初の歩数までの朝（最長3時間）。安静モードでは、睡眠中の \"下回り\" アラートは専用の下限より下でのみ鳴ります。睡眠中の心拍数が日中より低いのは正常です。</string>
+    <string name="walk_auto">年齢から範囲を計算（ゾーン2）</string>
+    <string name="walk_auto_need_birth">年齢から範囲を計算するには、\"%1$s\" で生年月日を入力してください。</string>
+    <string name="vibrate_on">振動 オン</string>
+    <string name="vibrate_off">振動 オフ</string>
+    <string name="night_desc">夜 - この時間帯です。夜間の振動がオフのとき、夜間と \"サイレントモード\" の間はアラートが振動しません。イヤホンの音声はそのままです。睡眠 - 夜と、最初の歩数までの朝（最長3時間）。安静モードでは、睡眠中の \"下回り\" アラートは専用の下限より下でのみ鳴ります。睡眠中の心拍数が日中より低いのは正常です。</string>
     <string name="night_from">%1$s から</string>
     <string name="night_to">%1$s まで</string>
-    <string name="speed_title">速度</string>
-    <string name="speed_desc">歩数計による概算の速度：ピッチ x 身長から求めた歩幅。ウォーキングとランニング向けで、自転車や乗り物では機能しません。歩数計はバッテリーをほとんど使いません。</string>
+    <string name="steps_speed_title">歩数と速度</string>
+    <string name="speed_desc">歩数計による概算の速度：ピッチ x 身長から求めた歩幅。ウォーキングとランニング向けで、自転車や乗り物では機能しません。歩数計はバッテリーをほとんど使いません。自動モードも歩数計を使います。</string>
     <string name="gps_training">GPS で速度を測定</string>
     <string name="gps_hint">歩数計より正確で自転車でも使えますが、バッテリーの消費がかなり増えます。このモードでのみ使用します。</string>
     <string name="speed_now">~%1$.1f km/h</string>
@@ -196,7 +198,7 @@
     <string name="show_hr_only">心拍センサーのみ表示</string>
     <string name="hr_sensor_prefix">心拍センサー、</string>
     <string name="back">戻る</string>
-    <string name="tile_alarm_title">アラート</string>
+    <string name="tile_modes_title">モード</string>
     <string name="tile_night_title">夜間</string>
     <string name="tile_voice_title">音声</string>
     <string name="tile_notif_title">通知</string>
@@ -209,7 +211,8 @@
     <string name="tile_speed_steps">歩数計</string>
     <string name="tile_speed_gps">歩数計、トレーニング時は GPS</string>
     <string name="tile_alarm">%1$s：%2$d-%3$d</string>
-    <string name="tile_alarm_off">%1$s：オフ</string>
+    <string name="tile_alarm_off">%1$s：アラート オフ</string>
+    <string name="tile_modes_auto">自動：%1$s</string>
     <string name="tile_voice_events">範囲外のときのみ</string>
     <string name="tile_voice_every">%1$d分ごと</string>
     <string name="tile_notif_on">心拍数を表示</string>
@@ -232,7 +235,7 @@
     <string name="corridor_default">デフォルト</string>
     <string name="scan_failed">スマートフォンが検索を拒否しました。30秒待ってから \"再検索\" を押してください。</string>
     <string name="scan_again">再検索</string>
-    <string name="night_quiet_on">振動なし</string>
-    <string name="night_quiet_off">振動あり</string>
+    <string name="night_vibrate_on">夜間の振動 オン</string>
+    <string name="night_vibrate_off">夜間の振動 オフ</string>
     <string name="sleep_low">睡眠中は %1$d 未満でアラート</string>
 </resources>

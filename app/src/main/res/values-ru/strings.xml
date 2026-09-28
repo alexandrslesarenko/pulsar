@@ -98,7 +98,7 @@
     <string name="zone4_desc">Тяжёлая: говорить можно только отдельными словами, долго не выдержать.</string>
     <string name="zone5_desc">Максимальная: короткие рывки, спринт.</string>
     <string name="zones_note">Коридор прогулки по возрасту - зона 2; тренировка по умолчанию - 70-85%, то есть зоны 3-4. Максимум считается как 220 минус возраст: у конкретного человека он может отличаться на 10-15 ударов, поэтому коридоры можно поправить вручную.</string>
-    <string name="history_title">История</string>
+    <string name="transfer_title">Экспорт и импорт</string>
     <string name="history_count">На телефоне %1$d записей.</string>
     <string name="history_help">Экспорт сохраняет всю историю в один файл (CSV в gzip); импорт добавляет записи из такого файла или из CSV за период, без дублей. Импортированные записи в Health Connect не отправляются.</string>
     <string name="help_toggle">Пояснение</string>
@@ -124,16 +124,18 @@
     <string name="profile_active_note">Сейчас активен: %1$s. Переключить режим можно на главном экране.</string>
     <string name="profile_auto_on">Автовыбор режима включён</string>
     <string name="profile_auto_off">Автовыбор режима выключен</string>
-    <string name="profile_auto_no_steps">Автовыбор режима работает по шагомеру: включите скорость по шагам в настройках.</string>
+    <string name="profile_auto_no_steps">Автовыбор режима работает по шагомеру: включите его в настройках, раздел \"%1$s\".</string>
+    <string name="profile_auto_no_sensor">В телефоне нет шагомера, поэтому автовыбор режима недоступен.</string>
     <string name="profile_auto_hint">Автовыбор на главном экране выбирает режим сам. Покой - стоите, пульс в коридоре покоя. Прогулка - есть шаги, но не бег. Тренировка - пульс в её коридоре при движении или темп бега; начатая тренировка держится и стоя. Без шагов высокий пульс (дела по дому, игра) режим не меняет. О смене режима скажет голос в наушниках и два импульса вибрации (по настройке вибрации нового режима). Смена должна продержаться 1-3 минуты, а после неё режим не меняется хотя бы 3 минуты. Если стоите, а пульс между коридорами (например, отходите после прогулки), режим не меняется. При автовыборе сигнал срабатывает только за общими границами - ниже покоя и выше тренировки - и когда пульс без движения 2 минуты выше коридора покоя. Нажатие на режим выключает автовыбор, и его коридор снова контролируется жёстко.</string>
-    <string name="walk_auto">Авто по возрасту (60-70% от макс.)</string>
-    <string name="walk_auto_need_birth">Чтобы включить авто, укажите дату рождения.</string>
-    <string name="vibrate_label">Вибрация</string>
-    <string name="night_desc">Ночь - эти часы. Если включено \"Без вибрации\", ночью и при режиме \"Не беспокоить\" сигналы не вибрируют; голос в наушниках остаётся. Сон - ночь и утро до первых шагов (не дольше 3 ч): в режиме покоя сигнал \"ниже\" во сне срабатывает только ниже своей границы - во сне пульс ниже дневного, это норма.</string>
+    <string name="walk_auto">Коридор по возрасту (зона 2)</string>
+    <string name="walk_auto_need_birth">Чтобы считать коридор по возрасту, укажите дату рождения в разделе \"%1$s\".</string>
+    <string name="vibrate_on">Вибрация включена</string>
+    <string name="vibrate_off">Вибрация выключена</string>
+    <string name="night_desc">Ночь - эти часы. Если выбрано \"Ночью не вибрирует\", то в эти часы и при режиме \"Не беспокоить\" сигналы не вибрируют; голос в наушниках остаётся. Сон - ночь и утро до первых шагов (не дольше 3 ч): в режиме покоя сигнал \"ниже\" во сне срабатывает только ниже своей границы - во сне пульс ниже дневного, это норма.</string>
     <string name="night_from">С %1$s</string>
     <string name="night_to">До %1$s</string>
-    <string name="speed_title">Скорость</string>
-    <string name="speed_desc">Примерная скорость по шагомеру: темп шагов x длина шага по росту. Подходит для ходьбы и бега; на велосипеде и в транспорте не работает. Шагомер почти не тратит заряд.</string>
+    <string name="steps_speed_title">Шаги и скорость</string>
+    <string name="speed_desc">Примерная скорость по шагомеру: темп шагов x длина шага по росту. Подходит для ходьбы и бега; на велосипеде и в транспорте не работает. Шагомер почти не тратит заряд. По шагомеру работает и автовыбор режима.</string>
     <string name="gps_training">Скорость по GPS</string>
     <string name="gps_hint">Точнее шагомера и работает на велосипеде, но заметно тратит заряд. Включается только в этом режиме.</string>
     <string name="speed_now">~%1$.1f км/ч</string>
@@ -199,7 +201,7 @@
     <string name="show_hr_only">Только датчики пульса</string>
     <string name="hr_sensor_prefix">датчик пульса, </string>
     <string name="back">Назад</string>
-    <string name="tile_alarm_title">Сигнал</string>
+    <string name="tile_modes_title">Режимы</string>
     <string name="tile_night_title">Ночь</string>
     <string name="tile_voice_title">Голос</string>
     <string name="tile_notif_title">Уведомление</string>
@@ -212,7 +214,8 @@
     <string name="tile_speed_steps">Шагомер</string>
     <string name="tile_speed_gps">Шагомер, GPS в тренировке</string>
     <string name="tile_alarm">%1$s: %2$d-%3$d</string>
-    <string name="tile_alarm_off">%1$s: выключен</string>
+    <string name="tile_alarm_off">%1$s: сигнал выключен</string>
+    <string name="tile_modes_auto">Автовыбор: %1$s</string>
     <string name="tile_voice_events">Только выход из коридора</string>
     <string name="tile_voice_every">Каждые %1$d мин</string>
     <string name="tile_notif_on">Показывает пульс</string>
@@ -235,7 +238,7 @@
     <string name="corridor_default">По умолчанию</string>
     <string name="scan_failed">Телефон отказал в поиске. Подождите полминуты и нажмите \"Искать заново\".</string>
     <string name="scan_again">Искать заново</string>
-    <string name="night_quiet_on">Без вибрации</string>
-    <string name="night_quiet_off">С вибрацией</string>
+    <string name="night_vibrate_on">Ночью вибрирует</string>
+    <string name="night_vibrate_off">Ночью не вибрирует</string>
     <string name="sleep_low">Во сне сигнал ниже %1$d</string>
 </resources>

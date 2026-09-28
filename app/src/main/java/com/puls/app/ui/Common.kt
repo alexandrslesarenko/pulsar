@@ -8,6 +8,10 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.Text
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -109,6 +113,30 @@ fun OneLineText(text: String, modifier: Modifier = Modifier) {
         maxLines = 1,
         autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = max),
     )
+}
+
+/**
+ * Заголовок плитки: в одну строку с уменьшением, пока шрифт не мельче 12 sp, иначе - в две
+ * строки обычным размером. "Экспорт и импорт" и японские названия в строку не влезают и
+ * при 10 sp, а обрезанный заголовок хуже переноса.
+ */
+@Composable
+fun TileTitle(text: String, modifier: Modifier = Modifier) {
+    val style = LocalTextStyle.current
+    val measurer = rememberTextMeasurer()
+    // Layout, а не BoxWithConstraints: плитки меряются через IntrinsicSize, а SubcomposeLayout этого не умеет.
+    Layout(
+        content = {
+            OneLineText(text)
+            Text(text, style = style, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val fits = !constraints.hasBoundedWidth ||
+            measurer.measure(text, style.copy(fontSize = 12.sp), maxLines = 1, softWrap = false).size.width <= constraints.maxWidth
+        val p = measurables[if (fits) 0 else 1].measure(constraints.copy(minHeight = 0))
+        layout(p.width.coerceAtLeast(constraints.minWidth), p.height) { p.place(0, 0) }
+    }
 }
 
 /** День и месяц в порядке, привычном для языка: 24.09 по-русски, 09/24 по-английски. */

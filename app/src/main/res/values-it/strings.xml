@@ -98,7 +98,7 @@
     <string name="zone4_desc">Intensa: solo parole singole, non si regge a lungo.</string>
     <string name="zone5_desc">Massima: sforzi brevi, scatti.</string>
     <string name="zones_note">L\'intervallo di camminata in base all\'età è la zona 2; l\'allenamento predefinito è 70-85% (zone 3-4). Il massimo è stimato come 220 meno l\'età e può variare di 10-15 battiti da persona a persona, quindi gli intervalli si possono regolare a mano.</string>
-    <string name="history_title">Cronologia</string>
+    <string name="transfer_title">Esporta e importa</string>
     <string name="history_count">%1$d registrazioni su questo telefono.</string>
     <string name="history_help">L\'esportazione salva tutta la cronologia in un file (CSV in gzip); l\'importazione aggiunge le registrazioni da un file simile, o da un CSV esportato per un periodo, senza duplicati. Le registrazioni importate non vengono inviate a Health Connect.</string>
     <string name="help_toggle">Spiegazione</string>
@@ -124,16 +124,18 @@
     <string name="profile_active_note">Attiva ora: %1$s. La modalità si cambia nella schermata principale.</string>
     <string name="profile_auto_on">Modalità automatica attiva</string>
     <string name="profile_auto_off">Modalità automatica disattiva</string>
-    <string name="profile_auto_no_steps">La modalità automatica richiede il contapassi: attiva la velocità dai passi nelle impostazioni.</string>
+    <string name="profile_auto_no_steps">La modalità automatica richiede il contapassi: attivalo nelle impostazioni, sezione \"%1$s\".</string>
+    <string name="profile_auto_no_sensor">Questo telefono non ha il contapassi, quindi la modalità automatica non è disponibile.</string>
     <string name="profile_auto_hint">La modalità automatica nella schermata principale sceglie la modalità da sola. Riposo - fermo, con frequenza cardiaca nell\'intervallo di riposo. Camminata - ci sono passi, ma non corsa. Allenamento - frequenza cardiaca nell\'intervallo di allenamento in movimento, o ritmo di corsa; un allenamento iniziato resta anche da fermi. Senza passi una frequenza alta (faccende di casa, videogiochi) non cambia la modalità. Il cambio viene annunciato nelle cuffie e con due vibrazioni (secondo l\'impostazione di vibrazione della nuova modalità). Un cambio deve durare 1-3 minuti, e dopo un cambio la modalità resta almeno 3 minuti. Se sei fermo con la frequenza cardiaca tra due intervalli (ad esempio in recupero dopo una camminata), la modalità non cambia. In modalità automatica l\'allarme scatta solo oltre i limiti generali - sotto il riposo e sopra l\'allenamento - e quando la frequenza cardiaca resta sopra l\'intervallo di riposo senza movimento per 2 minuti. Toccare una modalità disattiva la modalità automatica, e il suo intervallo torna a essere controllato rigidamente.</string>
-    <string name="walk_auto">Automatico in base all\'età (60-70% del max)</string>
-    <string name="walk_auto_need_birth">Indica la data di nascita per usare l\'automatico.</string>
-    <string name="vibrate_label">Vibrazione</string>
-    <string name="night_desc">Notte - queste ore. Con \"Senza vibrazione\" gli allarmi non vibrano di notte né con \"Non disturbare\"; la voce nelle cuffie resta. Sonno - la notte e il mattino fino ai primi passi (al massimo 3 h): in modalità Riposo l\'allarme \"sotto\" durante il sonno scatta solo sotto il proprio limite, perché un battito più basso nel sonno è normale.</string>
+    <string name="walk_auto">Intervallo in base all\'età (zona 2)</string>
+    <string name="walk_auto_need_birth">Per l\'intervallo in base all\'età, indica la data di nascita in \"%1$s\".</string>
+    <string name="vibrate_on">Vibrazione attiva</string>
+    <string name="vibrate_off">Vibrazione disattiva</string>
+    <string name="night_desc">Notte - queste ore. Con la vibrazione di notte disattiva gli allarmi non vibrano di notte né con \"Non disturbare\"; la voce nelle cuffie resta. Sonno - la notte e il mattino fino ai primi passi (al massimo 3 h): in modalità Riposo l\'allarme \"sotto\" durante il sonno scatta solo sotto il proprio limite, perché un battito più basso nel sonno è normale.</string>
     <string name="night_from">Dalle %1$s</string>
     <string name="night_to">Fino alle %1$s</string>
-    <string name="speed_title">Velocità</string>
-    <string name="speed_desc">Velocità approssimativa dal contapassi: cadenza x lunghezza del passo in base all\'altezza. Va bene per camminare e correre; non funziona in bici o in auto. Il contapassi non consuma quasi batteria.</string>
+    <string name="steps_speed_title">Passi e velocità</string>
+    <string name="speed_desc">Velocità approssimativa dal contapassi: cadenza x lunghezza del passo in base all\'altezza. Va bene per camminare e correre; non funziona in bici o in auto. Il contapassi non consuma quasi batteria. Anche la modalità automatica usa il contapassi.</string>
     <string name="gps_training">Velocità da GPS</string>
     <string name="gps_hint">Più preciso del contapassi e funziona in bici, ma consuma sensibilmente più batteria. Solo in questa modalità.</string>
     <string name="speed_now">~%1$.1f km/h</string>
@@ -198,7 +200,7 @@
     <string name="show_hr_only">Mostra solo i sensori cardiaci</string>
     <string name="hr_sensor_prefix">sensore cardiaco,</string>
     <string name="back">Indietro</string>
-    <string name="tile_alarm_title">Allarme</string>
+    <string name="tile_modes_title">Modalità</string>
     <string name="tile_night_title">Notte</string>
     <string name="tile_voice_title">Voce</string>
     <string name="tile_notif_title">Notifica</string>
@@ -211,7 +213,8 @@
     <string name="tile_speed_steps">Contapassi</string>
     <string name="tile_speed_gps">Contapassi, GPS in allenamento</string>
     <string name="tile_alarm">%1$s: %2$d-%3$d</string>
-    <string name="tile_alarm_off">%1$s: disattivo</string>
+    <string name="tile_alarm_off">%1$s: allarme disattivo</string>
+    <string name="tile_modes_auto">Automatica: %1$s</string>
     <string name="tile_voice_events">Solo uscite dall\'intervallo</string>
     <string name="tile_voice_every">Ogni %1$d min</string>
     <string name="tile_notif_on">Mostra il battito</string>
@@ -234,7 +237,7 @@
     <string name="corridor_default">Predefinito</string>
     <string name="scan_failed">Il telefono ha rifiutato la ricerca. Attendi mezzo minuto e tocca \"Cerca di nuovo\".</string>
     <string name="scan_again">Cerca di nuovo</string>
-    <string name="night_quiet_on">Senza vibrazione</string>
-    <string name="night_quiet_off">Con vibrazione</string>
+    <string name="night_vibrate_on">Vibrazione di notte attiva</string>
+    <string name="night_vibrate_off">Vibrazione di notte disattiva</string>
     <string name="sleep_low">Nel sonno, allarme sotto %1$d</string>
 </resources>
