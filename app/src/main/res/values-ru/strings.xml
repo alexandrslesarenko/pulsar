@@ -21,7 +21,7 @@
     <string name="notif_bpm_low">%1$d уд/мин - ниже %2$d</string>
     <string name="action_mute">Заглушить</string>
     <string name="channel_quiet">Фоновая запись</string>
-    <string name="notif_collecting">Сбор пульса идёт</string>
+    <string name="notif_collecting">Идёт запись пульса</string>
     <string name="theme_title">Тема</string>
     <string name="theme_desc">Оформление приложения. Виджет на рабочем столе следует теме системы.</string>
     <string name="theme_system">Системная</string>
@@ -47,7 +47,7 @@
     <string name="btn_start">Старт</string>
     <string name="btn_stop">Стоп</string>
     <string name="released_hint">Датчик свободен: его можно подключить на другом телефоне. Этот телефон не займёт его сам, пока вы не нажмёте \"Старт\".</string>
-    <string name="auto_search_hint">Ищу датчик... Если он рядом и надет, сбор запустится сам.</string>
+    <string name="auto_search_hint">Ищу датчик... Если он рядом и надет, запись начнётся сама.</string>
     <string name="alarm_above">Пульс выше %1$d</string>
     <string name="alarm_below">Пульс ниже %1$d</string>
     <string name="alarm_muted_hint">Сигнал заглушен до возврата в коридор</string>
@@ -125,17 +125,15 @@
     <string name="profile_auto_on">Автовыбор режима включён</string>
     <string name="profile_auto_off">Автовыбор режима выключен</string>
     <string name="profile_auto_no_steps">Автовыбор режима работает по шагомеру: включите скорость по шагам в настройках.</string>
-    <string name="profile_auto_hint">Автовыбор на главном экране выбирает режим сам. Покой - стоите, пульс в коридоре покоя. Прогулка - есть шаги, но не бег. Тренировка - пульс в её коридоре или темп бега, с движением или без. О смене режима скажет голос в наушниках и два импульса вибрации (по настройке вибрации нового режима). Смена должна продержаться 1-3 минуты, а после неё режим не меняется хотя бы 3 минуты. Если стоите, а пульс между коридорами (например, отходите после прогулки), режим не меняется. При автовыборе сигнал срабатывает только за общими границами - ниже покоя и выше тренировки - и когда пульс без движения 2 минуты выше коридора покоя. Нажатие на режим выключает автовыбор, и его коридор снова контролируется жёстко.</string>
+    <string name="profile_auto_hint">Автовыбор на главном экране выбирает режим сам. Покой - стоите, пульс в коридоре покоя. Прогулка - есть шаги, но не бег. Тренировка - пульс в её коридоре при движении или темп бега; начатая тренировка держится и стоя. Без шагов высокий пульс (дела по дому, игра) режим не меняет. О смене режима скажет голос в наушниках и два импульса вибрации (по настройке вибрации нового режима). Смена должна продержаться 1-3 минуты, а после неё режим не меняется хотя бы 3 минуты. Если стоите, а пульс между коридорами (например, отходите после прогулки), режим не меняется. При автовыборе сигнал срабатывает только за общими границами - ниже покоя и выше тренировки - и когда пульс без движения 2 минуты выше коридора покоя. Нажатие на режим выключает автовыбор, и его коридор снова контролируется жёстко.</string>
     <string name="walk_auto">Авто по возрасту (60-70% от макс.)</string>
     <string name="walk_auto_need_birth">Чтобы включить авто, укажите дату рождения.</string>
     <string name="vibrate_label">Вибрация</string>
-    <string name="night_title">Ночью без вибрации</string>
-    <string name="night_desc">В эти часы и при включённом режиме \"Не беспокоить\" сигналы не вибрируют. Голос в наушниках остаётся.</string>
+    <string name="night_desc">Ночь - эти часы. Если включено \"Без вибрации\", ночью и при режиме \"Не беспокоить\" сигналы не вибрируют; голос в наушниках остаётся. Сон - ночь и утро до первых шагов (не дольше 3 ч): в режиме покоя сигнал \"ниже\" во сне срабатывает только ниже своей границы - во сне пульс ниже дневного, это норма.</string>
     <string name="night_from">С %1$s</string>
     <string name="night_to">До %1$s</string>
     <string name="speed_title">Скорость</string>
     <string name="speed_desc">Примерная скорость по шагомеру: темп шагов x длина шага по росту. Подходит для ходьбы и бега; на велосипеде и в транспорте не работает. Шагомер почти не тратит заряд.</string>
-    <string name="height_label">Рост: %1$d см</string>
     <string name="gps_training">Скорость по GPS</string>
     <string name="gps_hint">Точнее шагомера и работает на велосипеде, но заметно тратит заряд. Включается только в этом режиме.</string>
     <string name="speed_now">~%1$.1f км/ч</string>
@@ -169,7 +167,7 @@
 
     <string name="sensor_title">Датчик</string>
     <string name="sensor_none">не выбран</string>
-    <string name="collect_switch">Сбор пульса</string>
+    <string name="collect_switch">Запись пульса</string>
     <string name="release_switch">Отдать датчик другому телефону</string>
     <string name="sensor_search">Искать потерянный датчик: %1$d мин</string>
     <string name="sensor_search_hint">Столько времени после потери связи телефон активно ищет датчик и не засыпает. Потом ждёт его экономно: датчик подключится, когда появится, но медленнее.</string>
@@ -191,7 +189,7 @@
     <string name="nowbar_off">Live Updates выключены для приложения. Включите их, чтобы пульс был в Now Bar.</string>
     <string name="enable">Включить</string>
     <string name="bg_title">Работа в фоне</string>
-    <string name="bg_bad">Ограничения батареи не сняты: Samsung может остановить сбор.</string>
+    <string name="bg_bad">Ограничения батареи не сняты: Samsung может остановить запись.</string>
 
     <string name="pick_title">Выберите датчик</string>
     <string name="bt_off">Bluetooth выключен. Включите его и откройте экран заново.</string>
@@ -206,8 +204,8 @@
     <string name="tile_voice_title">Голос</string>
     <string name="tile_notif_title">Уведомление</string>
     <string name="tile_hc_title">Health Connect</string>
-    <string name="tile_sensor_running">Сбор идёт</string>
-    <string name="tile_sensor_stopped">Сбор остановлен</string>
+    <string name="tile_sensor_running">Активен</string>
+    <string name="tile_sensor_stopped">Остановлен</string>
     <string name="tile_sensor_released">Отдан другому телефону</string>
     <string name="tile_about">Возраст %1$d, рост %2$d см</string>
     <string name="tile_about_no_age">Рост %1$d см</string>
@@ -217,10 +215,27 @@
     <string name="tile_alarm_off">%1$s: выключен</string>
     <string name="tile_voice_events">Только выход из коридора</string>
     <string name="tile_voice_every">Каждые %1$d мин</string>
-    <string name="tile_notif_on">Пульс виден</string>
+    <string name="tile_notif_on">Показывает пульс</string>
     <string name="tile_notif_off">Свёрнуто</string>
     <string name="tile_history">Записей: %1$d</string>
     <string name="tile_hc_sent">Отправлено до %1$s</string>
     <string name="tile_hc_off">Не подключён</string>
     <string name="tile_hc_unavailable">Недоступен</string>
+    <string name="notif_with_battery">%1$s, бат. %2$d%%</string>
+    <string name="height_unset">Не указан</string>
+    <string name="height_wheel">см</string>
+    <string name="tile_about_no_height">Возраст %1$d</string>
+    <string name="tile_about_empty">Не указано</string>
+    <string name="steps_on">Шагомер включён</string>
+    <string name="steps_off">Шагомер выключен</string>
+    <string name="speed_need_height">Для скорости по шагам нужен рост: укажите его в разделе \"О себе\".</string>
+    <string name="tile_speed_gps_only">GPS в тренировке</string>
+    <string name="tile_speed_off">Выключена</string>
+    <string name="tile_speed_no_height">Не указан рост</string>
+    <string name="corridor_default">По умолчанию</string>
+    <string name="scan_failed">Телефон отказал в поиске. Подождите полминуты и нажмите \"Искать заново\".</string>
+    <string name="scan_again">Искать заново</string>
+    <string name="night_quiet_on">Без вибрации</string>
+    <string name="night_quiet_off">С вибрацией</string>
+    <string name="sleep_low">Во сне сигнал ниже %1$d</string>
 </resources>

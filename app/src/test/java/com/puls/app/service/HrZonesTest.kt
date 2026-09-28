@@ -65,6 +65,23 @@ class HrZonesTest {
     }
 
     @Test
+    fun sleepLastsIntoMorningUntilSteps() {
+        val from = 23 * 60
+        val to = 7 * 60
+        assertTrue(HrZones.isSleep(3 * 60, from, to, 5, pedometer = true))
+        // 8:00, шагов не было с вечера - ещё спим.
+        assertTrue(HrZones.isSleep(8 * 60, from, to, 12 * 60, pedometer = true))
+        assertTrue(HrZones.isSleep(8 * 60, from, to, null, pedometer = true))
+        // 8:00, шаги в 7:30 - проснулись.
+        assertFalse(HrZones.isSleep(8 * 60, from, to, 30, pedometer = true))
+        // Утро ограничено: в 10:00 сна уже нет, даже без шагов.
+        assertFalse(HrZones.isSleep(10 * 60, from, to, null, pedometer = true))
+        // Без шагомера утро не продлеваем.
+        assertFalse(HrZones.isSleep(8 * 60, from, to, null, pedometer = false))
+        assertFalse(HrZones.isSleep(20 * 60, from, to, null, pedometer = true))
+    }
+
+    @Test
     fun emptyNight() {
         assertFalse(HrZones.isNight(0, 7 * 60, 7 * 60))
     }

@@ -5,8 +5,8 @@ package com.puls.app.service
  *
  * Покой от прогулки отличает движение: пульс отстаёт от нагрузки на минуты, и медленную
  * прогулку по одному пульсу не узнать. Прогулку от тренировки - пульс в коридоре тренировки
- * или темп бега. Стоим, а пульс между покоем и тренировкой (восстановление после нагрузки,
- * велосипед) - профиль не меняем.
+ * при движении или темп бега. Стоим, а пульс выше покоя (восстановление после нагрузки,
+ * дела по дому с телефоном на столе, игра) - профиль не меняем, в покое сработает restHigh.
  *
  * Защита от дребезга:
  * - медиана пульса за HR_WINDOW_MS: одиночные выбросы датчика не доходят до решения;
@@ -54,7 +54,11 @@ class AutoProfile {
         val trainLow = range(Profile.TRAINING).first
         val running = cadenceSpm >= if (current == Profile.TRAINING) RUN_SPM - SPM_HYST else RUN_SPM
         val moving = cadenceSpm >= if (current == Profile.WALK) STILL_SPM else WALK_SPM
-        val training = med >= if (current == Profile.TRAINING) trainLow - HR_HYST else trainLow
+        // Пульс тренировки без шагов - это и домашние дела с телефоном на столе, и волнение за игрой
+        // (испытания 26-27.09). Поэтому по пульсу в тренировку входим только в движении; уже начатая
+        // тренировка без шагов держится (пауза между подходами, упражнения на месте).
+        val trainingPulse = med >= if (current == Profile.TRAINING) trainLow - HR_HYST else trainLow
+        val training = trainingPulse && (current == Profile.TRAINING || cadenceSpm >= STILL_SPM)
         val target = when {
             running || training -> Profile.TRAINING
             moving -> Profile.WALK

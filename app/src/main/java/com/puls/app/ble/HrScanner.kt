@@ -8,6 +8,8 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.ParcelUuid
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,7 +23,12 @@ data class FoundDevice(
     val hasHrService: Boolean,
     /** Похоже на датчик пульса: сервис 0x180D, Appearance "Heart Rate Sensor" или имя. */
     val isHrSensor: Boolean,
+    /** Когда датчик последний раз был слышен в эфире, elapsedRealtime. */
+    val seenAt: Long = 0,
 )
+
+/** Система отказала в поиске (например, слишком частые запуски); code - ScanCallback.SCAN_FAILED_*. */
+class ScanFailed(val code: Int) : Exception("scan failed: $code")
 
 @SuppressLint("MissingPermission")
 class HrScanner(context: Context) {
@@ -40,10 +47,17 @@ class HrScanner(context: Context) {
             override fun onScanResult(callbackType: Int, r: ScanResult) {
                 val name = r.scanRecord?.deviceName ?: r.device.name
                 val hasHr = r.scanRecord?.serviceUuids?.contains(hrUuid) == true
-                if (name == null && !hasHr) return
-                val isHr = hasHr || isHrAppearance(r.scanRecord?.bytes) || (name != null && HR_NAME.containsMatchIn(name))
-                found[r.device.address] = FoundDevice(r.device.address, name, r.rssi, hasHr, isHr)
+                val hrAppearance = isHrAppearance(r.scanRecord?.bytes)
+                // Безымянный датчик без UUID в рекламе, но с Appearance "пульс" - тоже показываем.
+                if (name == null && !hasHr && !hrAppearance) return
+                val isHr = hasHr || hrAppearance || (name != null && HR_NAME.containsMatchIn(name))
+                found[r.device.address] = FoundDevice(r.device.address, name, r.rssi, hasHr, isHr, SystemClock.elapsedRealtime())
                 trySend(found.toMap())
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                Log.w(TAG, "scan failed: $errorCode")
+                close(ScanFailed(errorCode))
             }
         }
         val scanner = adapter.bluetoothLeScanner
@@ -53,6 +67,7 @@ class HrScanner(context: Context) {
     }
 
     companion object {
+        private const val TAG = "HrScanner"
         private val HR_NAME = Regex("(?i)(heart|\\bhrm?\\b|\\bhr[\\s_-]|polar h|tickr|coros|pulse)")
 
         /** AD-поле 0x19 Appearance с категорией 0x0D (0x0340-0x037F) - Heart Rate Sensor. */

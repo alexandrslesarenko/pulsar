@@ -107,7 +107,12 @@ fun HistoryScreen() {
     LaunchedEffect(qFrom, qTo) {
         if (zoomed != null) delay(GESTURE_DEBOUNCE_MS)
         launch { dao.marks(qFrom, qTo).collect { marks = it } }
-        launch { dao.motion(qFrom, qTo).collect { motion = it } }
+        dao.motion(qFrom, qTo).collect { motion = it }
+    }
+    // Итоги - ровно за видимый участок. Ключи - сами границы, а не выровненные по интервалу:
+    // при крупном интервале сдвиг в его пределах не меняет запрос графика, а итоги меняет.
+    LaunchedEffect(from, to) {
+        if (zoomed != null) delay(GESTURE_DEBOUNCE_MS)
         dao.stats(from, to).collect { stats = it }
     }
     val spans = remember(marks, qTo) { spansOf(marks, qTo) }

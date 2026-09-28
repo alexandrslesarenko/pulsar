@@ -40,12 +40,12 @@ object Speed {
         return cadence * strideM(heightCm, cadence) * 60 / 1000
     }
 
-    /** Скорость отрезка, км/ч: GPS, если он был, иначе по шагам; null - данных нет. */
+    /** Скорость отрезка, км/ч: GPS, если он был, иначе по шагам; null - данных нет или рост не указан. */
     fun of(samples: List<MotionSample>, heightCm: Int): Double? {
         val gps = samples.mapNotNull { it.gpsMps }
         if (gps.isNotEmpty()) return gps.average() * 3.6
         val dur = samples.sumOf { it.durMs }
-        if (dur <= 0) return null
+        if (dur <= 0 || heightCm <= 0) return null
         return fromSteps(samples.sumOf { it.steps }, dur, heightCm)
     }
 }

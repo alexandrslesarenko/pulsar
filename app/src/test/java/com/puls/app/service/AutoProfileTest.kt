@@ -90,9 +90,18 @@ class AutoProfileTest {
     }
 
     @Test
-    fun trainingInPlaceWithoutSteps() {
+    fun highPulseWithoutStepsIsNotTraining() {
+        // Дела по дому с телефоном на столе или игра: пульс тренировки, шагов нет.
         val r = Run(Profile.REST)
-        r.go(200, 130, 0.0)
+        r.go(600, 135, 0.0)
+        assertEquals(Profile.REST, r.profile)
+        assertTrue(r.auto.restHigh)
+    }
+
+    @Test
+    fun trainingHoldsWhileStandingBetweenSets() {
+        val r = Run(Profile.TRAINING)
+        r.go(600, 130, 0.0)
         assertEquals(Profile.TRAINING, r.profile)
     }
 

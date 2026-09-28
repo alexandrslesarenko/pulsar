@@ -34,7 +34,6 @@ import com.puls.app.data.HrDb
 import com.puls.app.data.HrSample
 import com.puls.app.data.ProfileLog
 import com.puls.app.ui.MainActivity
-import com.puls.app.ui.deviceLine
 import com.puls.app.ui.statusText
 import com.puls.app.widget.HrWidget
 import kotlinx.coroutines.CoroutineScope
@@ -75,6 +74,8 @@ class HrService : Service(), HrListener {
     private var destroyed = false
     private var lastSampleLogAt = 0L
     private var lastContact: Boolean? = null
+    /** Когда последний раз были шаги (темп от STILL_SPM); по ним утром видно, что проснулись. */
+    private var lastStepsAt = 0L
     /** Последний записанный в журнал заряд телефона и признак зарядки. */
     private var loggedPhoneBattery: Pair<Int, Boolean>? = null
 
@@ -190,7 +191,13 @@ class HrService : Service(), HrListener {
         }
         prefs.collecting = true
         prefs.released = false
-        if (LiveHr.state.value.conn == ConnState.IDLE) client.start(address)
+        // Выбрали другой датчик при работающем сервисе - переподключаемся к нему, иначе остались бы на старом.
+        if (LiveHr.state.value.conn == ConnState.IDLE || client.address != address) {
+            if (client.address != null && client.address != address) {
+                LiveHr.mutable.value = LiveHr.state.value.copy(deviceName = prefs.deviceName, battery = null)
+            }
+            client.start(address)
+        }
         updateShake()
         updateMotion()
         updateProfile()
@@ -278,9 +285,22 @@ class HrService : Service(), HrListener {
      * и о высоком пульсе без движения в покое.
      */
     private fun alarmRange(): IntRange {
-        if (!autoActive()) return prefs.range(prefs.profile)
-        val rest = prefs.range(Profile.REST)
-        return rest.first..(if (auto.restHigh) rest.last else prefs.range(Profile.TRAINING).last)
+        val r = if (!autoActive()) {
+            prefs.range(prefs.profile)
+        } else {
+            val rest = prefs.range(Profile.REST)
+            rest.first..(if (auto.restHigh) rest.last else prefs.range(Profile.TRAINING).last)
+        }
+        // Во сне пульс ниже дневного покоя, и сигнал "ниже" будил бы всю ночь (испытания 24-28.09).
+        if (prefs.profile != Profile.REST || !sleeping()) return r
+        return minOf(prefs.sleepLow, r.first)..r.last
+    }
+
+    private fun sleeping(): Boolean {
+        val now = System.currentTimeMillis()
+        val t = java.time.LocalTime.now()
+        val sinceSteps = lastStepsAt.takeIf { it > 0 }?.let { ((now - it) / 60_000).toInt() }
+        return HrZones.isSleep(t.hour * 60 + t.minute, prefs.nightFrom, prefs.nightTo, sinceSteps, motion.stepsOn)
     }
 
     /**
@@ -367,6 +387,7 @@ class HrService : Service(), HrListener {
             scope.launch { bufferLock.withLock { buffer += HrSample(now, m.bpm) } }
             LiveHr.recentMutable.value = LiveHr.recent.value
                 .dropWhile { it.first < now - LiveHr.RECENT_WINDOW_MS } + (now to m.bpm)
+            if (motion.stepsOn && motion.cadence.spm(now) >= AutoProfile.STILL_SPM) lastStepsAt = now
             if (autoActive()) {
                 auto.onSample(now, m.bpm, motion.cadence.spm(now), prefs.profile, prefs::range)?.let(::switchProfile)
             }
@@ -408,10 +429,17 @@ class HrService : Service(), HrListener {
         )
     }
 
+    override fun onLinkFailure(what: String, status: Int) {
+        Telemetry.log("gatt", what, status)
+    }
+
     override fun onBattery(percent: Int) {
         // Заряд датчика в журнал - только изменения: по ним видно расход в процентах в час.
-        if (percent != LiveHr.state.value.battery) Telemetry.log("bat", percent)
+        if (percent == LiveHr.state.value.battery) return
+        Telemetry.log("bat", percent)
         LiveHr.mutable.value = LiveHr.state.value.copy(battery = percent)
+        // Заряд - в заголовке уведомления; без пульса (датчик снят) его больше ничто не обновит.
+        notifyNow()
     }
 
     private fun pushWidget(force: Boolean) {
@@ -433,14 +461,17 @@ class HrService : Service(), HrListener {
     private fun buildNotification(s: LiveState): Notification {
         val live = s.conn == ConnState.CONNECTED && s.bpm != null && s.skinContact != false
         val show = prefs.showInNotification
-        val title = when {
+        val state = when {
             !live -> statusText(this, s)
             s.alarm == AlarmZone.NORMAL && !show -> getString(R.string.notif_collecting)
             s.alarm == AlarmZone.HIGH -> getString(R.string.notif_bpm_high, s.bpm, alarm.bounds.last)
             s.alarm == AlarmZone.LOW -> getString(R.string.notif_bpm_low, s.bpm, alarm.bounds.first)
             else -> getString(R.string.notif_bpm, s.bpm)
         }
-        val text = deviceLine(this, s.deviceName, s.battery)
+        // Одна строка: заряд рядом с пульсом, имя датчика не нужно - он и так один.
+        // Пока связи нет, заряд устарел - не показываем.
+        val linked = s.conn == ConnState.CONNECTED || s.conn == ConnState.NO_SIGNAL
+        val title = s.battery?.takeIf { linked }?.let { getString(R.string.notif_with_battery, state, it) } ?: state
 
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
@@ -454,7 +485,6 @@ class HrService : Service(), HrListener {
         return b
             .setSmallIcon(R.drawable.ic_heart)
             .setContentTitle(title)
-            .setContentText(text)
             .setContentIntent(open)
             .addAction(0, getString(R.string.action_stop), stop)
             .setOngoing(true)

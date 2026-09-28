@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.ZoneId
 import java.util.TimeZone
 
 class ChartScaleTest {
@@ -40,5 +41,27 @@ class ChartScaleTest {
         val from = 1_790_103_600_000L
         val (step, _) = timeTicks(from, from + 7 * DAY_MS, almaty)
         assertTrue(step >= DAY_MS)
+    }
+
+    @Test
+    fun midnightsInsideRange() {
+        val zone = ZoneId.of("Asia/Almaty")
+        val midnight = 1_790_103_600_000L
+        assertEquals(listOf(midnight), midnights(midnight - hour, midnight + hour, zone))
+        // Сама граница from не считается: черта в начале графика не нужна.
+        assertEquals(emptyList<Long>(), midnights(midnight, midnight + hour, zone))
+        assertEquals(emptyList<Long>(), midnights(midnight + hour, midnight + 5 * hour, zone))
+        assertEquals(3, midnights(midnight - hour, midnight + 2 * DAY_MS + hour, zone).size)
+    }
+
+    @Test
+    fun midnightsFollowDaylightSaving() {
+        // 2026-03-29 в Берлине переводят часы: сутки 28-29 марта длиной 23 ч.
+        val zone = ZoneId.of("Europe/Berlin")
+        val from = java.time.LocalDateTime.of(2026, 3, 28, 12, 0).atZone(zone).toInstant().toEpochMilli()
+        val m = midnights(from, from + 2 * DAY_MS, zone)
+        assertEquals(2, m.size)
+        assertEquals(23 * hour, m[1] - m[0])
+        m.forEach { assertEquals(0, java.time.Instant.ofEpochMilli(it).atZone(zone).hour) }
     }
 }

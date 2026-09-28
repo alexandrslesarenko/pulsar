@@ -7,6 +7,7 @@ class Prefs(context: Context) {
         /** Норма пульса в покое для взрослых (American Heart Association). */
         const val REST_LOW = 60
         const val REST_HIGH = 100
+        const val SLEEP_LOW = 40
 
         const val THEME_SYSTEM = "system"
         const val THEME_LIGHT = "light"
@@ -88,6 +89,19 @@ class Prefs(context: Context) {
         sp.edit().putInt("${p.key}_low", low).putInt("${p.key}_high", high).apply()
     }
 
+    /** Коридор по умолчанию: свои границы забываем, у прогулки снова расчёт по возрасту. */
+    fun resetRange(p: Profile) {
+        sp.edit().remove("${p.key}_low").remove("${p.key}_high").apply()
+        if (p == Profile.WALK) walkAuto = true
+    }
+
+    /** Коридор профиля совпадает с тем, что даст resetRange. */
+    fun isDefaultRange(p: Profile): Boolean {
+        val a = age
+        val def = if (p == Profile.WALK && a != null) HrZones.walkZone(a) else p.defaultRange(a)
+        return range(p) == def && (p != Profile.WALK || a == null || walkAuto)
+    }
+
     fun vibrate(p: Profile): Boolean = sp.getBoolean("${p.key}_vibrate", p.defaultVibrate)
 
     fun setVibrate(p: Profile, v: Boolean) = sp.edit().putBoolean("${p.key}_vibrate", v).apply()
@@ -113,6 +127,14 @@ class Prefs(context: Context) {
     var nightTo: Int
         get() = sp.getInt("night_to", 7 * 60)
         set(v) = sp.edit().putInt("night_to", v).apply()
+
+    /**
+     * Нижняя граница сигнала во сне (режим "Покой", ночью и утром до первых шагов).
+     * Во сне пульс ниже дневного покоя - это норма; редкий пульс ниже 40 - повод проснуться.
+     */
+    var sleepLow: Int
+        get() = sp.getInt("sleep_low", SLEEP_LOW)
+        set(v) = sp.edit().putInt("sleep_low", v).apply()
 
     init {
         migrateCorridor()
@@ -171,9 +193,9 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("steps_enabled", true)
         set(v) = sp.edit().putBoolean("steps_enabled", v).apply()
 
-    /** Рост, см: от него длина шага. */
+    /** Рост, см: от него длина шага; 0 - не указан, скорости по шагам нет. */
     var heightCm: Int
-        get() = sp.getInt("height_cm", 175)
+        get() = sp.getInt("height_cm", 0)
         set(v) = sp.edit().putInt("height_cm", v).apply()
 
     /** В профиле "Тренировка" мерить скорость по GPS. */

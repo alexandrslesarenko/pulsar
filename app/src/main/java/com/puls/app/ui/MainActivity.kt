@@ -131,6 +131,7 @@ import android.hardware.SensorManager
 import com.puls.app.ble.ConnState
 import com.puls.app.ble.FoundDevice
 import com.puls.app.ble.HrScanner
+import com.puls.app.ble.ScanFailed
 import com.puls.app.data.HealthSync
 import com.puls.app.service.AlarmZone
 import com.puls.app.service.HrService
@@ -149,6 +150,11 @@ import com.puls.app.data.ProfileLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import android.os.SystemClock
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.produceState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -194,6 +200,11 @@ private val APP_LANGUAGES = listOf(
 private val ZONE_COLORS = listOf(
     Color(0xFF8E9AA6), Color(0xFF3F8FE8), Color(0xFF3BA55C), Color(0xFFE8912D), Color(0xFFE5484D),
 )
+/** Сколько мс устройство остаётся в списке выбора после последнего пакета рекламы. */
+private const val FOUND_STALE_MS = 20_000L
+private const val SLEEP_LOW_MIN = 30
+private const val SLEEP_LOW_MAX = 59
+private const val RESCAN_PAUSE_MS = 10_000L
 private const val HEIGHT_MIN = 120
 private const val HEIGHT_MAX = 220
 private const val SEARCH_MIN_MIN = 1
@@ -679,10 +690,14 @@ class MainActivity : ComponentActivity() {
         var vibrate by remember(p) { mutableStateOf(prefs.vibrate(p)) }
         val a = age
         val locked = p == Profile.WALK && auto && a != null
+        // Ползунок и кнопки легко задеть при прокрутке, поэтому коридор правится только после "Изменить".
+        var editing by remember(p) { mutableStateOf(false) }
+        var isDefault by remember(p, age) { mutableStateOf(prefs.isDefaultRange(p)) }
         fun save(newLo: Int, newHi: Int, log: Boolean) {
             lo = newLo.coerceIn(ALARM_MIN, newHi - 1)
             hi = newHi.coerceIn(lo + 1, ALARM_MAX)
             prefs.setRange(p, lo, hi)
+            isDefault = prefs.isDefaultRange(p)
             corridorChanged(log)
         }
         SettingsCard(
@@ -715,10 +730,35 @@ class MainActivity : ComponentActivity() {
                 onValueChangeFinished = { corridorChanged() },
                 valueRange = ALARM_MIN.toFloat()..ALARM_MAX.toFloat(),
                 // Коридор нужен и для раскраски истории, поэтому правится и при выключенном сигнале.
-                enabled = !locked,
+                enabled = editing && !locked,
             )
             ReferenceScale(p, a)
-            if (p == Profile.WALK) {
+            if (editing && !locked) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.from), Modifier.width(28.dp))
+                    StepButtons(true, { save(lo - 1, hi, log = true) }, { save(lo + 1, hi, log = true) })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.to), Modifier.width(28.dp))
+                    StepButtons(true, { save(lo, hi - 1, log = true) }, { save(lo, hi + 1, log = true) })
+                }
+            }
+            FitRow { style ->
+                OutlinedButton(onClick = { editing = !editing }) {
+                    Text(stringResource(if (editing) R.string.birth_done else R.string.birth_edit), maxLines = 1, style = style)
+                }
+                OutlinedButton(enabled = !isDefault, onClick = {
+                    prefs.resetRange(p)
+                    auto = prefs.walkAuto
+                    lo = prefs.range(p).first
+                    hi = prefs.range(p).last
+                    isDefault = prefs.isDefaultRange(p)
+                    editing = false
+                    corridorChanged()
+                }) { Text(stringResource(R.string.corridor_default), maxLines = 1, style = style) }
+            }
+            // Переключатель расчёта по возрасту - тоже часть коридора, поэтому только в режиме правки.
+            if (p == Profile.WALK && (editing || a == null)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.walk_auto), Modifier.weight(1f))
                     Switch(checked = auto && a != null, enabled = a != null, onCheckedChange = {
@@ -728,6 +768,7 @@ class MainActivity : ComponentActivity() {
                         if (!it && a != null) HrZones.walkZone(a).let { w -> prefs.setRange(p, w.first, w.last) }
                         lo = prefs.range(p).first
                         hi = prefs.range(p).last
+                        isDefault = prefs.isDefaultRange(p)
                         corridorChanged()
                     })
                 }
@@ -738,14 +779,6 @@ class MainActivity : ComponentActivity() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.from), Modifier.width(28.dp))
-                StepButtons(!locked, { save(lo - 1, hi, log = true) }, { save(lo + 1, hi, log = true) })
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.to), Modifier.width(28.dp))
-                StepButtons(!locked, { save(lo, hi - 1, log = true) }, { save(lo, hi + 1, log = true) })
             }
             if (p == Profile.TRAINING) {
                 var gps by remember { mutableStateOf(prefs.gpsInTraining) }
@@ -785,7 +818,8 @@ class MainActivity : ComponentActivity() {
         var on by remember { mutableStateOf(prefs.stepsEnabled) }
         SettingsCard(stringResource(R.string.speed_title), help = stringResource(R.string.speed_desc)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(if (on && stepsGranted) R.string.enabled else R.string.disabled), Modifier.weight(1f))
+                // Переключатель - только шагомер: GPS в тренировке включается в карточке сигнала.
+                Text(stringResource(if (on && stepsGranted) R.string.steps_on else R.string.steps_off), Modifier.weight(1f))
                 Switch(checked = on && stepsGranted, onCheckedChange = {
                     on = it
                     if (it && !stepsGranted) {
@@ -797,6 +831,13 @@ class MainActivity : ComponentActivity() {
                     }
                 })
             }
+            if (on && stepsGranted && prefs.heightCm <= 0) {
+                Text(
+                    stringResource(R.string.speed_need_height),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 
@@ -807,9 +848,16 @@ class MainActivity : ComponentActivity() {
         var to by remember { mutableStateOf(prefs.nightTo) }
         fun hm(min: Int) = "%02d:%02d".format(min / 60, min % 60)
         fun shift(min: Int, delta: Int) = Math.floorMod(min + delta, 24 * 60)
-        SettingsCard(stringResource(R.string.night_title), help = stringResource(R.string.night_desc)) {
+        var sleepLow by remember { mutableStateOf(prefs.sleepLow) }
+        fun setSleepLow(v: Int) {
+            sleepLow = v.coerceIn(SLEEP_LOW_MIN, SLEEP_LOW_MAX)
+            prefs.sleepLow = sleepLow
+            HrService.refresh(this@MainActivity)
+        }
+        // Часы ночи общие: по ним и тишина вибрации, и граница сна, поэтому правятся всегда.
+        SettingsCard(stringResource(R.string.tile_night_title), help = stringResource(R.string.night_desc)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(if (on) R.string.enabled else R.string.disabled), Modifier.weight(1f))
+                Text(stringResource(if (on) R.string.night_quiet_on else R.string.night_quiet_off), Modifier.weight(1f))
                 Switch(checked = on, onCheckedChange = {
                     on = it
                     prefs.nightQuiet = it
@@ -825,8 +873,12 @@ class MainActivity : ComponentActivity() {
                         stringResource(if (isFrom) R.string.night_from else R.string.night_to, hm(v)),
                         Modifier.width(88.dp),
                     )
-                    StepButtons(on, { set(shift(v, -NIGHT_STEP_MIN)) }, { set(shift(v, NIGHT_STEP_MIN)) })
+                    StepButtons(true, { set(shift(v, -NIGHT_STEP_MIN)) }, { set(shift(v, NIGHT_STEP_MIN)) })
                 }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.sleep_low, sleepLow), Modifier.weight(1f))
+                StepButtons(true, { setSleepLow(sleepLow - 1) }, { setSleepLow(sleepLow + 1) })
             }
         }
     }
@@ -923,9 +975,11 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun AboutSettings() {
         var height by remember { mutableStateOf(prefs.heightCm) }
+        val heights = remember { listOf(0) + (HEIGHT_MIN..HEIGHT_MAX) }
         fun setHeight(v: Int) {
-            height = v.coerceIn(HEIGHT_MIN, HEIGHT_MAX)
-            prefs.heightCm = height
+            height = v
+            // Сервис читает рост при каждом расчёте скорости, перезапускать его не нужно.
+            prefs.heightCm = v
         }
         var y by remember { mutableStateOf(prefs.birthYear) }
         var m by remember { mutableStateOf(prefs.birthMonth) }
@@ -956,7 +1010,10 @@ class MainActivity : ComponentActivity() {
         SettingsCard(stringResource(R.string.about_title), help = stringResource(R.string.about_desc)) {
             if (!editing) {
                 AboutLine(stringResource(R.string.birth_title), birthText(y, m, d, locale) ?: stringResource(R.string.birth_unset))
-                AboutLine(stringResource(R.string.height_title), stringResource(R.string.height_value, height))
+                AboutLine(
+                    stringResource(R.string.height_title),
+                    if (height > 0) stringResource(R.string.height_value, height) else stringResource(R.string.height_unset),
+                )
                 if (a != null) {
                     Text(
                         stringResource(R.string.about_age, a, HrZones.maxHr(a)),
@@ -994,9 +1051,18 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.weight(1f),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.height_label, height), Modifier.width(110.dp))
-                StepButtons(true, { setHeight(height - 1) }, { setHeight(height + 1) })
+            Text(stringResource(R.string.height_title), style = MaterialTheme.typography.titleSmall)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Wheel(
+                    stringResource(R.string.height_wheel),
+                    heights.map { if (it == 0) UNSET else it.toString() },
+                    heights.indexOf(height).coerceAtLeast(0),
+                    enabled = true,
+                    onChange = { setHeight(heights[it]) },
+                    modifier = Modifier.weight(1.2f),
+                )
+                // Ширина колеса - как у года рождения.
+                Spacer(Modifier.weight(2f))
             }
             OutlinedButton(onClick = { editing = false }) { Text(stringResource(R.string.birth_done)) }
         }
@@ -1297,22 +1363,34 @@ class MainActivity : ComponentActivity() {
                 else -> R.string.tile_sensor_running
             }
         )
-        SettingsPage.ABOUT -> age?.let { stringResource(R.string.tile_about, it, prefs.heightCm) }
-            ?: stringResource(R.string.tile_about_no_age, prefs.heightCm)
-        SettingsPage.SPEED -> when {
-            !(prefs.stepsEnabled && stepsGranted) -> stringResource(R.string.disabled)
-            prefs.gpsInTraining && locationGranted -> stringResource(R.string.tile_speed_gps)
-            else -> stringResource(R.string.tile_speed_steps)
+        SettingsPage.ABOUT -> {
+            val h = prefs.heightCm
+            val a = age
+            when {
+                a != null && h > 0 -> stringResource(R.string.tile_about, a, h)
+                a != null -> stringResource(R.string.tile_about_no_height, a)
+                h > 0 -> stringResource(R.string.tile_about_no_age, h)
+                else -> stringResource(R.string.tile_about_empty)
+            }
+        }
+        SettingsPage.SPEED -> {
+            // Скорость бывает по шагомеру (нужен рост) и по GPS в тренировке - независимо друг от друга.
+            val steps = prefs.stepsEnabled && stepsGranted
+            val gps = prefs.gpsInTraining && locationGranted
+            when {
+                steps && prefs.heightCm <= 0 -> stringResource(R.string.tile_speed_no_height)
+                steps && gps -> stringResource(R.string.tile_speed_gps)
+                gps -> stringResource(R.string.tile_speed_gps_only)
+                steps -> stringResource(R.string.tile_speed_steps)
+                else -> stringResource(R.string.tile_speed_off)
+            }
         }
         SettingsPage.ALARM -> prefs.range(profile).let { r ->
             if (prefs.alarmEnabled(profile)) stringResource(R.string.tile_alarm, stringResource(profile.label), r.first, r.last)
             else stringResource(R.string.tile_alarm_off, stringResource(profile.label))
         }
-        SettingsPage.NIGHT -> if (prefs.nightQuiet) {
-            "%02d:%02d-%02d:%02d".format(prefs.nightFrom / 60, prefs.nightFrom % 60, prefs.nightTo / 60, prefs.nightTo % 60)
-        } else {
-            stringResource(R.string.disabled)
-        }
+        // Часы ночи действуют и без тишины вибрации: по ним граница сна.
+        SettingsPage.NIGHT -> "%02d:%02d-%02d:%02d".format(prefs.nightFrom / 60, prefs.nightFrom % 60, prefs.nightTo / 60, prefs.nightTo % 60)
         SettingsPage.VOICE -> when {
             !prefs.voiceEnabled -> stringResource(R.string.disabled)
             prefs.voiceIntervalMin == 0 -> stringResource(R.string.tile_voice_events)
@@ -1595,17 +1673,35 @@ class MainActivity : ComponentActivity() {
         val scanner = remember { HrScanner(ctx) }
         val found = remember { mutableStateMapOf<String, FoundDevice>() }
         var showAll by remember { mutableStateOf(false) }
+        var failed by remember { mutableStateOf(false) }
+        // Номер попытки поиска: "Искать заново" начинает поиск с пустого списка.
+        var round by remember { mutableIntStateOf(0) }
+        // Частые запуски поиска система молча глушит; после нажатия кнопка отдыхает.
+        var rescanAt by remember { mutableLongStateOf(0L) }
+        // Раз в пару секунд: включили ли Bluetooth и какие устройства пропали из эфира.
+        val tick by produceState(SystemClock.elapsedRealtime()) {
+            while (true) {
+                delay(2_000)
+                value = SystemClock.elapsedRealtime()
+            }
+        }
+        val btOn = remember(tick) { scanner.isBluetoothOn }
 
-        DisposableEffect(Unit) {
+        DisposableEffect(btOn, round) {
             var job: Job? = null
-            if (scanner.isBluetoothOn) {
-                job = lifecycleScope.launch { scanner.scan().collect { found.putAll(it) } }
+            found.clear()
+            failed = false
+            if (btOn) {
+                job = lifecycleScope.launch {
+                    runCatching { scanner.scan().collect { found.putAll(it) } }
+                        .onFailure { if (it is ScanFailed) failed = true else if (it is CancellationException) throw it }
+                }
             }
             onDispose { job?.cancel() }
         }
 
         Text(stringResource(R.string.pick_title), style = MaterialTheme.typography.titleLarge)
-        if (!scanner.isBluetoothOn) {
+        if (!btOn) {
             Text(stringResource(R.string.bt_off))
         } else {
             Text(
@@ -1613,9 +1709,20 @@ class MainActivity : ComponentActivity() {
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        onCancel?.let { OutlinedButton(onClick = it) { Text(stringResource(R.string.cancel)) } }
-        val others = found.values.count { !it.isHrSensor }
-        val list = found.values
+        if (failed) Text(stringResource(R.string.scan_failed), style = MaterialTheme.typography.bodySmall)
+        FitRow { style ->
+            onCancel?.let { OutlinedButton(onClick = it) { Text(stringResource(R.string.cancel), maxLines = 1, style = style) } }
+            OutlinedButton(enabled = btOn && tick - rescanAt >= RESCAN_PAUSE_MS, onClick = {
+                rescanAt = SystemClock.elapsedRealtime()
+                round++
+            }) {
+                Text(stringResource(R.string.scan_again), maxLines = 1, style = style)
+            }
+        }
+        // Датчик, который не слышно дольше FOUND_STALE_MS, выключен или ушёл к другому телефону.
+        val fresh = found.values.filter { tick - it.seenAt < FOUND_STALE_MS }
+        val others = fresh.count { !it.isHrSensor }
+        val list = fresh
             .filter { showAll || it.isHrSensor }
             .sortedWith(compareByDescending<FoundDevice> { it.isHrSensor }.thenByDescending { it.rssi })
         if (others > 0) {

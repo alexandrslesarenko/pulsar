@@ -57,6 +57,24 @@ object HrZones {
         else -> minuteOfDay >= from || minuteOfDay < to
     }
 
+    /** Сколько минут после конца ночи ещё считаем сном, пока не было шагов. */
+    const val MORNING_SLEEP_MIN = 180
+
+    /**
+     * Спит ли человек: всю ночь [from, to) и утром после неё, пока нет шагов (просыпаются
+     * позже будильника ночи - по испытаниям пульс сна держался до 9-10 ч). Утро - не дольше
+     * MORNING_SLEEP_MIN: телефон, забытый на тумбочке, не должен продлить сон на весь день.
+     * minutesSinceSteps - сколько минут назад были шаги (null - не было); без шагомера
+     * (pedometer = false) сон - только ночь.
+     */
+    fun isSleep(minuteOfDay: Int, from: Int, to: Int, minutesSinceSteps: Int?, pedometer: Boolean): Boolean {
+        if (isNight(minuteOfDay, from, to)) return true
+        if (!pedometer || from == to) return false
+        val sinceNightEnd = Math.floorMod(minuteOfDay - to, 24 * 60)
+        if (sinceNightEnd >= MORNING_SLEEP_MIN) return false
+        return minutesSinceSteps == null || minutesSinceSteps > sinceNightEnd
+    }
+
     /** Проверка ввода: год обязателен, месяц и день - по желанию (0). */
     fun isValid(year: Int, month: Int, day: Int, today: LocalDate = LocalDate.now()): Boolean {
         if (year !in 1900..today.year - 5) return false

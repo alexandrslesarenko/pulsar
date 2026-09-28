@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +48,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -89,14 +92,8 @@ fun HrChart(
     val axisStyle = TextStyle(fontSize = 11.sp, color = colors.onSurfaceVariant)
     val tipStyle = TextStyle(fontSize = 12.sp, color = colors.inverseOnSurface)
     var touchX by remember { mutableStateOf<Float?>(null) }
+    val dayLine = dayLineColor()
     val bpmUnit = stringResource(R.string.bpm_unit)
-
-    if (points.isEmpty()) {
-        Box(modifier.fillMaxWidth().chartHeight(height), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.chart_no_data), color = colors.onSurfaceVariant)
-        }
-        return
-    }
 
     val span = to - from
     val tipFmt = remember(span) {
@@ -104,151 +101,159 @@ fun HrChart(
     }
 
     val visible = spans.filter { it.to > from && it.from < to }
-    val rawLo = minOf(points.minOf { it.lo }, visible.minOfOrNull { it.corridor?.first ?: Int.MAX_VALUE } ?: Int.MAX_VALUE)
-    val rawHi = maxOf(points.maxOf { it.hi }, visible.maxOfOrNull { it.corridor?.last ?: Int.MIN_VALUE } ?: Int.MIN_VALUE)
+    // Без данных шкала - по коридорам или обычный пульс в покое.
+    val rawLo = minOf(points.minOfOrNull { it.lo } ?: Int.MAX_VALUE, visible.minOfOrNull { it.corridor?.first ?: Int.MAX_VALUE } ?: Int.MAX_VALUE)
+        .takeIf { it != Int.MAX_VALUE } ?: EMPTY_LO
+    val rawHi = maxOf(points.maxOfOrNull { it.hi } ?: Int.MIN_VALUE, visible.maxOfOrNull { it.corridor?.last ?: Int.MIN_VALUE } ?: Int.MIN_VALUE)
+        .takeIf { it != Int.MIN_VALUE } ?: EMPTY_HI
     val step = niceStep(rawHi - rawLo)
     val yMin = (floor((rawLo - 3) / step.toDouble()) * step).toInt().coerceAtLeast(0)
     val yMax = (ceil((rawHi + 3) / step.toDouble()) * step).toInt()
 
-    Canvas(
-        modifier.fillMaxWidth().chartHeight(height)
-            .pointerInput(points) {
-                // Касание только читаем и не поглощаем, иначе свайп по графику не дойдёт до пейджера.
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    touchX = down.position.x
-                    while (true) {
-                        val c = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
-                        if (!c.pressed || c.isConsumed) break
-                        if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+    // Пустой участок рисуем с осями и жестами: иначе из него нельзя ни уйти сдвигом, ни уменьшить масштаб.
+    Box(modifier.fillMaxWidth().chartHeight(height), contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier.fillMaxSize()
+                .pointerInput(points) {
+                    // Касание только читаем и не поглощаем, иначе свайп по графику не дойдёт до пейджера.
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        touchX = down.position.x
+                        while (true) {
+                            val c = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                            if (!c.pressed || c.isConsumed) break
+                            if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+                        }
+                        touchX = null
                     }
-                    touchX = null
                 }
+                .pinch { transform }
+                .pointerInput(points) {
+                    // Долгое нажатие, иначе обычный свайп уходит пейджеру вкладок.
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { touchX = it.x },
+                        onDragEnd = { touchX = null },
+                        onDragCancel = { touchX = null },
+                        onDrag = { change, _ -> touchX = change.position.x },
+                    )
+                }
+        ) {
+            val left = CHART_LEFT.toPx()
+            val bottom = size.height - 20.dp.toPx()
+            val top = 8.dp.toPx()
+            val right = size.width - CHART_RIGHT.toPx()
+            fun x(t: Long) = left + (t - from).toFloat() / span * (right - left)
+            fun y(v: Double) = bottom - ((v - yMin) / (yMax - yMin)).toFloat() * (bottom - top)
+
+            // Сетка и подписи по оси Y
+            var v = yMin
+            while (v <= yMax) {
+                val yy = y(v.toDouble())
+                drawLine(colors.outlineVariant.copy(alpha = 0.5f), Offset(left, yy), Offset(right, yy), 1f)
+                val tl = measurer.measure(v.toString(), axisStyle)
+                drawText(tl, topLeft = Offset(left - tl.size.width - 6.dp.toPx(), yy - tl.size.height / 2))
+                v += step
             }
-            .pinch { transform }
-            .pointerInput(points) {
-                // Долгое нажатие, иначе обычный свайп уходит пейджеру вкладок.
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { touchX = it.x },
-                    onDragEnd = { touchX = null },
-                    onDragCancel = { touchX = null },
-                    onDrag = { change, _ -> touchX = change.position.x },
+
+            drawTimeAxis(from, to, left, right, bottom, ::x) { measurer.measure(it, axisStyle) }
+            drawDayLines(from, to, top, bottom, dayLine, ::x)
+
+            // Непрерывные участки
+            val segments = ArrayList<List<ChartPoint>>()
+            var cur = ArrayList<ChartPoint>()
+            for (p in points) {
+                if (cur.isNotEmpty() && p.t - cur.last().t > gapMs) {
+                    segments += cur; cur = ArrayList()
+                }
+                cur += p
+            }
+            if (cur.isNotEmpty()) segments += cur
+
+            // Цвет по зонам: выше коридора красный, ниже жёлтый, внутри зелёный.
+            // Жёсткие переходы градиента ровно на высоте границ.
+            fun zones(corridor: IntRange, a: Float): Brush {
+                val fHi = (y(corridor.last.toDouble()) / size.height).coerceIn(0f, 1f)
+                val fLo = (y(corridor.first.toDouble()) / size.height).coerceIn(0f, 1f)
+                return Brush.verticalGradient(
+                    0f to ZoneHigh.copy(alpha = a), fHi to ZoneHigh.copy(alpha = a),
+                    fHi to ZoneIn.copy(alpha = a), fLo to ZoneIn.copy(alpha = a),
+                    fLo to ZoneLow.copy(alpha = a), 1f to ZoneLow.copy(alpha = a),
+                    startY = 0f, endY = size.height,
                 )
             }
-    ) {
-        val left = CHART_LEFT.toPx()
-        val bottom = size.height - 20.dp.toPx()
-        val top = 8.dp.toPx()
-        val right = size.width - CHART_RIGHT.toPx()
-        fun x(t: Long) = left + (t - from).toFloat() / span * (right - left)
-        fun y(v: Double) = bottom - ((v - yMin) / (yMax - yMin)).toFloat() * (bottom - top)
+            val plainLine = SolidColor(colors.primary)
+            val plainBand = SolidColor(colors.primary.copy(alpha = 0.18f))
+            val line = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
 
-        // Сетка и подписи по оси Y
-        var v = yMin
-        while (v <= yMax) {
-            val yy = y(v.toDouble())
-            drawLine(colors.outlineVariant.copy(alpha = 0.5f), Offset(left, yy), Offset(right, yy), 1f)
-            val tl = measurer.measure(v.toString(), axisStyle)
-            drawText(tl, topLeft = Offset(left - tl.size.width - 6.dp.toPx(), yy - tl.size.height / 2))
-            v += step
-        }
-
-        drawTimeAxis(from, to, left, right, bottom, ::x) { measurer.measure(it, axisStyle) }
-
-        // Непрерывные участки
-        val segments = ArrayList<List<ChartPoint>>()
-        var cur = ArrayList<ChartPoint>()
-        for (p in points) {
-            if (cur.isNotEmpty() && p.t - cur.last().t > gapMs) {
-                segments += cur; cur = ArrayList()
-            }
-            cur += p
-        }
-        if (cur.isNotEmpty()) segments += cur
-
-        // Цвет по зонам: выше коридора красный, ниже жёлтый, внутри зелёный.
-        // Жёсткие переходы градиента ровно на высоте границ.
-        fun zones(corridor: IntRange, a: Float): Brush {
-            val fHi = (y(corridor.last.toDouble()) / size.height).coerceIn(0f, 1f)
-            val fLo = (y(corridor.first.toDouble()) / size.height).coerceIn(0f, 1f)
-            return Brush.verticalGradient(
-                0f to ZoneHigh.copy(alpha = a), fHi to ZoneHigh.copy(alpha = a),
-                fHi to ZoneIn.copy(alpha = a), fLo to ZoneIn.copy(alpha = a),
-                fLo to ZoneLow.copy(alpha = a), 1f to ZoneLow.copy(alpha = a),
-                startY = 0f, endY = size.height,
-            )
-        }
-        val plainLine = SolidColor(colors.primary)
-        val plainBand = SolidColor(colors.primary.copy(alpha = 0.18f))
-        val line = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
-
-        fun drawSegments(lineBrush: Brush, bandBrush: Brush) {
-            for (seg in segments) {
-                if (seg.size == 1) {
-                    drawCircle(lineBrush, 2.5.dp.toPx(), Offset(x(seg[0].t), y(seg[0].avg)))
-                    continue
-                }
-                if (seg.any { it.hi != it.lo }) {
-                    val area = Path()
-                    seg.forEachIndexed { i, p -> if (i == 0) area.moveTo(x(p.t), y(p.hi.toDouble())) else area.lineTo(x(p.t), y(p.hi.toDouble())) }
-                    seg.asReversed().forEach { p -> area.lineTo(x(p.t), y(p.lo.toDouble())) }
-                    area.close()
-                    drawPath(area, bandBrush)
-                }
-                val path = Path()
-                seg.forEachIndexed { i, p -> if (i == 0) path.moveTo(x(p.t), y(p.avg)) else path.lineTo(x(p.t), y(p.avg)) }
-                drawPath(path, lineBrush, style = line)
-            }
-        }
-
-        // Каждый участок рисуем в своих границах по X со своим коридором; вне участков - без зон.
-        // Линия толщиной в пару dp вылезает за край на полтолщины, это незаметно.
-        var cursor = left
-        val brushes = ArrayList<Pair<ChartSpan, Brush>>()
-        for (sp in visible.sortedBy { it.from }) {
-            val x0 = x(sp.from).coerceIn(left, right)
-            val x1 = x(sp.to).coerceIn(left, right)
-            if (x0 > cursor) clipRect(cursor, 0f, x0, size.height) { drawSegments(plainLine, plainBand) }
-            cursor = maxOf(cursor, x1)
-            if (x1 <= x0) continue
-            clipRect(x0, 0f, x1, size.height) {
-                sp.tint?.let { drawRect(it.copy(alpha = 0.22f), Offset(x0, top), Size(x1 - x0, bottom - top)) }
-                val c = sp.corridor
-                if (c == null) {
-                    drawSegments(plainLine, plainBand)
-                } else {
-                    for ((v, col) in listOf(c.last to ZoneHigh, c.first to ZoneLow)) {
-                        val yy = y(v.toDouble())
-                        drawLine(col.copy(alpha = 0.8f), Offset(x0, yy), Offset(x1, yy), 1.5.dp.toPx(), pathEffect = dash)
+            fun drawSegments(lineBrush: Brush, bandBrush: Brush) {
+                for (seg in segments) {
+                    if (seg.size == 1) {
+                        drawCircle(lineBrush, 2.5.dp.toPx(), Offset(x(seg[0].t), y(seg[0].avg)))
+                        continue
                     }
-                    val lb = zones(c, 1f)
-                    brushes += sp to lb
-                    drawSegments(lb, zones(c, 0.18f))
+                    if (seg.any { it.hi != it.lo }) {
+                        val area = Path()
+                        seg.forEachIndexed { i, p -> if (i == 0) area.moveTo(x(p.t), y(p.hi.toDouble())) else area.lineTo(x(p.t), y(p.hi.toDouble())) }
+                        seg.asReversed().forEach { p -> area.lineTo(x(p.t), y(p.lo.toDouble())) }
+                        area.close()
+                        drawPath(area, bandBrush)
+                    }
+                    val path = Path()
+                    seg.forEachIndexed { i, p -> if (i == 0) path.moveTo(x(p.t), y(p.avg)) else path.lineTo(x(p.t), y(p.avg)) }
+                    drawPath(path, lineBrush, style = line)
                 }
             }
-        }
-        if (cursor < right) clipRect(cursor, 0f, right, size.height) { drawSegments(plainLine, plainBand) }
 
-        // Перекрестие и подсказка
-        val tx = touchX
-        if (tx != null) {
-            val p = points.minBy { abs(x(it.t) - tx) }
-            val px = x(p.t)
-            val py = y(p.avg)
-            drawLine(colors.onSurfaceVariant.copy(alpha = 0.6f), Offset(px, top), Offset(px, bottom), 1.dp.toPx())
-            drawCircle(colors.surface, 6.dp.toPx(), Offset(px, py))
-            val pointBrush = brushes.firstOrNull { (sp, _) -> p.t >= sp.from && p.t < sp.to }?.second ?: plainLine
-            drawCircle(pointBrush, 4.dp.toPx(), Offset(px, py))
-            val range = if (p.lo != p.hi) "  (${p.lo}-${p.hi})" else ""
-            val tl = measurer.measure("${tipFmt.format(Date(p.t))}   ${p.avg.roundToInt()} $bpmUnit$range", tipStyle)
-            val pad = 6.dp.toPx()
-            val w = tl.size.width + pad * 2
-            val h = tl.size.height + pad * 2
-            val bx = (px - w / 2).coerceIn(left, right - w)
-            drawRoundRect(colors.inverseSurface, Offset(bx, top), Size(w, h), CornerRadius(6.dp.toPx()))
-            drawText(tl, topLeft = Offset(bx + pad, top + pad))
+            // Каждый участок рисуем в своих границах по X со своим коридором; вне участков - без зон.
+            // Линия толщиной в пару dp вылезает за край на полтолщины, это незаметно.
+            var cursor = left
+            val brushes = ArrayList<Pair<ChartSpan, Brush>>()
+            for (sp in visible.sortedBy { it.from }) {
+                val x0 = x(sp.from).coerceIn(left, right)
+                val x1 = x(sp.to).coerceIn(left, right)
+                if (x0 > cursor) clipRect(cursor, 0f, x0, size.height) { drawSegments(plainLine, plainBand) }
+                cursor = maxOf(cursor, x1)
+                if (x1 <= x0) continue
+                clipRect(x0, 0f, x1, size.height) {
+                    sp.tint?.let { drawRect(it.copy(alpha = 0.22f), Offset(x0, top), Size(x1 - x0, bottom - top)) }
+                    val c = sp.corridor
+                    if (c == null) {
+                        drawSegments(plainLine, plainBand)
+                    } else {
+                        for ((v, col) in listOf(c.last to ZoneHigh, c.first to ZoneLow)) {
+                            val yy = y(v.toDouble())
+                            drawLine(col.copy(alpha = 0.8f), Offset(x0, yy), Offset(x1, yy), 1.5.dp.toPx(), pathEffect = dash)
+                        }
+                        val lb = zones(c, 1f)
+                        brushes += sp to lb
+                        drawSegments(lb, zones(c, 0.18f))
+                    }
+                }
+            }
+            if (cursor < right) clipRect(cursor, 0f, right, size.height) { drawSegments(plainLine, plainBand) }
+
+            // Перекрестие и подсказка
+            val tx = touchX
+            if (tx != null && points.isNotEmpty()) {
+                val p = points.minBy { abs(x(it.t) - tx) }
+                val px = x(p.t)
+                val py = y(p.avg)
+                drawLine(colors.onSurfaceVariant.copy(alpha = 0.6f), Offset(px, top), Offset(px, bottom), 1.dp.toPx())
+                drawCircle(colors.surface, 6.dp.toPx(), Offset(px, py))
+                val pointBrush = brushes.firstOrNull { (sp, _) -> p.t >= sp.from && p.t < sp.to }?.second ?: plainLine
+                drawCircle(pointBrush, 4.dp.toPx(), Offset(px, py))
+                val range = if (p.lo != p.hi) "  (${p.lo}-${p.hi})" else ""
+                val tl = measurer.measure("${tipFmt.format(Date(p.t))}   ${p.avg.roundToInt()} $bpmUnit$range", tipStyle)
+                val pad = 6.dp.toPx()
+                val w = tl.size.width + pad * 2
+                val h = tl.size.height + pad * 2
+                val bx = (px - w / 2).coerceIn(left, right - w)
+                drawRoundRect(colors.inverseSurface, Offset(bx, top), Size(w, h), CornerRadius(6.dp.toPx()))
+                drawText(tl, topLeft = Offset(bx + pad, top + pad))
+            }
         }
+        if (points.isEmpty()) Text(stringResource(R.string.chart_no_data), color = colors.onSurfaceVariant)
     }
 }
 
@@ -257,6 +262,38 @@ private val ZoneIn = ZoneColors.In
 private val ZoneLow = ZoneColors.Low
 
 internal const val DAY_MS = 24 * 3_600_000L
+private const val EMPTY_LO = 60
+private const val EMPTY_HI = 100
+
+/**
+ * Цвет черты новых суток: не совпадает ни с зонами (красный, жёлтый, зелёный), ни с
+ * фоном режимов, ни с линиями графиков (primary, secondary), поэтому берём цвет текста.
+ */
+@Composable
+private fun dayLineColor() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+
+/** Полночи местного времени внутри (from, to]. Сутки считаем по календарю: при переводе часов они не 24 ч. */
+internal fun midnights(from: Long, to: Long, zone: ZoneId = ZoneId.systemDefault()): List<Long> {
+    val out = ArrayList<Long>()
+    var d = Instant.ofEpochMilli(from).atZone(zone).toLocalDate().plusDays(1)
+    while (true) {
+        val t = d.atStartOfDay(zone).toInstant().toEpochMilli()
+        if (t > to) break
+        out += t
+        d = d.plusDays(1)
+    }
+    return out
+}
+
+/** Вертикальная черта на каждой полуночи: на графиках за несколько суток видно, где начался новый день. */
+private fun DrawScope.drawDayLines(from: Long, to: Long, top: Float, bottom: Float, color: Color, x: (Long) -> Float) {
+    // На неделе и дальше черт слишком много, и подписи оси там и так даты.
+    if (to - from > 8 * DAY_MS) return
+    for (t in midnights(from, to)) {
+        val xx = x(t)
+        drawLine(color, Offset(xx, top), Offset(xx, bottom), 1.5.dp.toPx())
+    }
+}
 
 private fun Modifier.chartHeight(dp: Int?) = if (dp != null) height(dp.dp) else fillMaxHeight()
 
@@ -337,6 +374,7 @@ fun SpeedChart(
     val measurer = rememberTextMeasurer()
     val axisStyle = TextStyle(fontSize = 11.sp, color = colors.onSurfaceVariant)
     val transform by rememberUpdatedState(onTransform)
+    val dayLine = dayLineColor()
     if (points.isEmpty()) return
     val maxV = points.maxOf { it.second }
     val step = when {
@@ -363,6 +401,7 @@ fun SpeedChart(
             v += step
         }
         drawTimeAxis(from, to, left, right, bottom, ::x) { measurer.measure(it, axisStyle) }
+        drawDayLines(from, to, top, bottom, dayLine, ::x)
         clipRect(left, 0f, right, size.height) {
             var seg = ArrayList<Pair<Long, Double>>()
             fun flushSeg() {

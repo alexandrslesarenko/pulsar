@@ -33,4 +33,12 @@ class SpeedTest {
     fun noDataIsNull() {
         assertNull(Speed.of(emptyList(), 175))
     }
+
+    @Test
+    fun noHeightMeansNoStepSpeed() {
+        val rows = listOf(MotionSample(0, 60_000, 110, null))
+        assertNull(Speed.of(rows, 0))
+        // GPS от роста не зависит.
+        assertEquals(18.0, Speed.of(listOf(MotionSample(0, 60_000, 110, 5f)), 0)!!, 0.01)
+    }
 }

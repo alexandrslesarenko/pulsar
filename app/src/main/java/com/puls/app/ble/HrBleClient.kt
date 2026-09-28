@@ -23,6 +23,8 @@ interface HrListener {
     fun onState(state: ConnState, deviceName: String?)
     fun onMeasurement(m: HrMeasurement)
     fun onBattery(percent: Int)
+    /** Сбой связи с кодом стека Bluetooth: по нему видно, кто и почему рвёт связь. */
+    fun onLinkFailure(what: String, status: Int) {}
 }
 
 /**
@@ -52,7 +54,9 @@ class HrBleClient(
     private var searchSince = 0L
 
     private var gatt: BluetoothGatt? = null
-    private var address: String? = null
+    /** Адрес датчика, с которым держим (или ищем) связь; null - остановлен. */
+    var address: String? = null
+        private set
     private var deviceName: String? = null
     private var attempt = 0
     private var lastDataAt = 0L
@@ -63,6 +67,8 @@ class HrBleClient(
     private var batterySubscribed = false
 
     fun start(address: String) {
+        // Другой датчик - имя старого не переносим (stop() иначе сообщит его заново).
+        if (address != this.address) deviceName = null
         stop()
         this.address = address
         stopped = false
@@ -155,6 +161,7 @@ class HrBleClient(
                     }
                 } else if (now - probeSentAt >= PROBE_TIMEOUT_MS) {
                     Log.w(TAG, "link not responding, reconnecting")
+                    listener.onLinkFailure("probe_timeout", 0)
                     probeSentAt = 0
                     g.disconnect()
                     g.close()
@@ -182,6 +189,7 @@ class HrBleClient(
         val ch = g.getService(Gatt.HEART_RATE_SERVICE)?.getCharacteristic(Gatt.HEART_RATE_MEASUREMENT)
         if (ch == null) {
             Log.e(TAG, "Heart Rate Service not found")
+            listener.onLinkFailure("no_hr_service", 0)
             g.disconnect()
             return
         }
@@ -256,6 +264,7 @@ class HrBleClient(
                     // Сразу после подключения стек иногда отдаёт пустой список сервисов.
                     main.postDelayed(discover, DISCOVER_DELAY_MS)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    listener.onLinkFailure("disconnect", status)
                     g.close()
                     gatt = null
                     scheduleReconnect()
@@ -266,7 +275,12 @@ class HrBleClient(
         override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
             main.post {
                 if (g != gatt) return@post
-                if (status == BluetoothGatt.GATT_SUCCESS) enableNotifications(g) else g.disconnect()
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    enableNotifications(g)
+                } else {
+                    listener.onLinkFailure("discover", status)
+                    g.disconnect()
+                }
             }
         }
 
@@ -276,6 +290,7 @@ class HrBleClient(
                 // Подписка на заряд необязательна: её отказ связь не рвёт.
                 if (d.characteristic.uuid == Gatt.BATTERY_LEVEL) return@post
                 if (status != BluetoothGatt.GATT_SUCCESS) {
+                    listener.onLinkFailure("subscribe", status)
                     g.disconnect()
                     return@post
                 }
