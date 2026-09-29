@@ -23,7 +23,7 @@ class ActivityShareTest {
 
     @Test
     fun sameModeMarksAreMerged() {
-        // Правка коридора прогулки посреди прогулки - новая запись того же режима.
+        // Editing the walk range in the middle of a walk - a new record of the same mode.
         val marks = listOf(mark(100, "walk"), mark(150, "walk"), mark(300, "rest"))
         assertEquals(listOf(ActivityShare.Interval(100, 300, "walk")), ActivityShare.intervals(marks, 0, 1000))
     }

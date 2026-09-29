@@ -59,14 +59,14 @@ class HrService : Service(), HrListener {
     private lateinit var motion: MotionTracker
     private lateinit var audio: AudioManager
     private val auto = AutoProfile()
-    /** Автовыбор включён и шагомер работает: без шагов прогулку от покоя не отличить. */
+    /** Auto selection is on and the pedometer works: without steps a walk cannot be told from rest. */
     private var autoOn = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val buffer = ArrayList<HrSample>()
     private val bufferLock = Mutex()
     private var lastNotifyAt = 0L
-    /** Что показано в уведомлении сейчас; перестраиваем только при смене. */
+    /** What the notification shows now; rebuilt only on change. */
     private var shownBpm: Int? = null
     private lateinit var power: PowerManager
     private var lastWidgetAt = 0L
@@ -74,9 +74,9 @@ class HrService : Service(), HrListener {
     private var destroyed = false
     private var lastSampleLogAt = 0L
     private var lastContact: Boolean? = null
-    /** Когда последний раз были шаги (темп от STILL_SPM); по ним утром видно, что проснулись. */
+    /** When there were steps last (cadence from STILL_SPM); in the morning they show the user is awake. */
     private var lastStepsAt = 0L
-    /** Последний записанный в журнал заряд телефона и признак зарядки. */
+    /** Last phone battery level written to the log, and the charging flag. */
     private var loggedPhoneBattery: Pair<Int, Boolean>? = null
 
     private val btReceiver = object : BroadcastReceiver() {
@@ -86,13 +86,13 @@ class HrService : Service(), HrListener {
         }
     }
 
-    /** Наушники подключили или сняли: от этого зависит, слушать ли встряхивание. */
+    /** Headphones connected or removed: this decides whether to listen for shakes. */
     private val audioCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) = updateShake()
         override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) = updateShake()
     }
 
-    /** При выключенном экране виджет не обновляем и уведомление обновляем редко; при включении - сразу. */
+    /** With the screen off the widget is not updated and the notification is updated rarely; on screen on - right away. */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             notifyNow()
@@ -118,8 +118,8 @@ class HrService : Service(), HrListener {
                 enableVibration(false)
             }
         )
-        // Тихий режим: Android требует уведомление для фонового сервиса, но оно может быть
-        // свёрнутым, без значка в строке состояния и без экрана блокировки.
+        // Quiet mode: Android requires a notification for a foreground service, but it can be
+        // collapsed, without a status bar icon and without the lock screen.
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_QUIET, getString(R.string.channel_quiet), NotificationManager.IMPORTANCE_MIN).apply {
                 lockscreenVisibility = Notification.VISIBILITY_SECRET
@@ -191,7 +191,7 @@ class HrService : Service(), HrListener {
         }
         prefs.collecting = true
         prefs.released = false
-        // Выбрали другой датчик при работающем сервисе - переподключаемся к нему, иначе остались бы на старом.
+        // Another sensor was chosen while the service runs - reconnect to it, otherwise we would stay on the old one.
         if (LiveHr.state.value.conn == ConnState.IDLE || client.address != address) {
             if (client.address != null && client.address != address) {
                 LiveHr.mutable.value = LiveHr.state.value.copy(deviceName = prefs.deviceName, battery = null)
@@ -217,7 +217,7 @@ class HrService : Service(), HrListener {
         voice.shutdown()
         LiveHr.mutable.value = LiveState()
         LiveHr.recentMutable.value = emptyList()
-        // Хвост буфера дописываем синхронно: после onDestroy процесс может умереть.
+        // The buffer tail is written synchronously: after onDestroy the process may die.
         runBlocking(Dispatchers.IO) { flush() }
         val app = applicationContext
         CoroutineScope(Dispatchers.IO).launch { runCatching { HrWidget.push(app, LiveState()) } }
@@ -225,7 +225,7 @@ class HrService : Service(), HrListener {
         super.onDestroy()
     }
 
-    /** Акселерометр нужен, только когда голосу есть куда говорить. */
+    /** The accelerometer is needed only when the voice has somewhere to speak. */
     private fun updateShake() {
         if (destroyed) return
         if (prefs.shakeEnabled && prefs.voiceEnabled && voice.headphonesConnected()) shake.start() else shake.stop()
@@ -240,8 +240,8 @@ class HrService : Service(), HrListener {
     private fun granted(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
     /**
-     * Шагомер - всегда, когда включён и разрешён. GPS - только в профиле "Тренировка"
-     * с включённым тумблером: он заметно тратит заряд.
+     * Pedometer - always when enabled and permitted. GPS - only in the "Training" profile
+     * with the switch on: it drains the battery noticeably.
      */
     private fun updateMotion() {
         if (destroyed) return
@@ -252,7 +252,7 @@ class HrService : Service(), HrListener {
         }
         val gps = prefs.profile == Profile.TRAINING && prefs.gpsInTraining && granted(Manifest.permission.ACCESS_FINE_LOCATION)
         if (gps && !motion.gpsOn) {
-            // Геолокацию сервису даёт тип location; добавить его можно, пока приложение на экране.
+            // The service gets location through the location type; it can be added only while the app is on screen.
             runCatching { startFg(withLocation = true) }
                 .onSuccess { motion.startGps() }
                 .onFailure { Log.w(TAG, "location service type refused", it) }
@@ -265,8 +265,8 @@ class HrService : Service(), HrListener {
     }
 
     /**
-     * Профиль мог смениться в UI, автовыбор - включиться или выключиться. Ручной выбор
-     * выключает автовыбор, поэтому при любой такой смене начинаем его с чистого листа.
+     * The profile could have changed in the UI, auto selection could have been turned on or off. A manual choice
+     * turns auto selection off, so on any such change we restart it from a clean slate.
      */
     private fun updateProfile() {
         if (destroyed) return
@@ -280,9 +280,9 @@ class HrService : Service(), HrListener {
     }
 
     /**
-     * Границы сигнала. Вручную - коридор профиля, жёстко. В авто профиль сам следует за
-     * пульсом, поэтому сигналим только за общими границами (ниже покоя, выше тренировки)
-     * и о высоком пульсе без движения в покое.
+     * Alarm bounds. Manual - the profile range, strictly. In auto the profile follows
+     * heart rate by itself, so we alarm only outside the overall bounds (below rest, above training)
+     * and on high heart rate without motion in rest.
      */
     private fun alarmRange(): IntRange {
         val r = if (!autoActive()) {
@@ -291,7 +291,7 @@ class HrService : Service(), HrListener {
             val rest = prefs.range(Profile.REST)
             rest.first..(if (auto.restHigh) rest.last else prefs.range(Profile.TRAINING).last)
         }
-        // Во сне пульс ниже дневного покоя, и сигнал "ниже" будил бы всю ночь (испытания 24-28.09).
+        // In sleep heart rate is below daytime rest, and the "below" alarm would wake all night (field tests 24-28.09).
         if (prefs.profile != Profile.REST || !sleeping()) return r
         return minOf(prefs.sleepLow, r.first)..r.last
     }
@@ -304,8 +304,8 @@ class HrService : Service(), HrListener {
     }
 
     /**
-     * Ручной выбор в UI выключает автовыбор сразу в prefs, а REFRESH до сервиса идёт позже:
-     * в этом окне автовыбор не должен перебить выбор пользователя.
+     * A manual choice in the UI turns auto selection off in prefs at once, but REFRESH reaches the service later:
+     * in this window auto selection must not override the user's choice.
      */
     private fun autoActive() = autoOn && prefs.autoProfile
 
@@ -316,7 +316,7 @@ class HrService : Service(), HrListener {
         LiveHr.mutable.value = LiveHr.state.value.copy(profile = p)
         alarm.profileSwitched()
         voice.onProfile(p)
-        // GPS в тренировке: из фона система его не даст, но если приложение на экране - включится.
+        // GPS in training: the system will not grant it from the background, but if the app is on screen it turns on.
         updateMotion()
         scope.launch(Dispatchers.IO) { runCatching { ProfileLog.record(this@HrService) } }
     }
@@ -333,9 +333,9 @@ class HrService : Service(), HrListener {
     }
 
     private suspend fun periodic() {
-        // Отправка в Health Connect - по часам, а не по счётчику тиков: сервис перезапускается
-        // (обновление, система), и счётчик с нуля мог не дожить до отправки. Первая - сразу
-        // после запуска, чтобы догнать накопленное.
+        // Sending to Health Connect goes by the clock, not by a tick counter: the service restarts
+        // (update, system), and a counter from zero might not live until the send. The first one - right
+        // after start, to catch up with what has accumulated.
         var lastSyncAt = 0L
         while (scope.isActive) {
             delay(FLUSH_PERIOD_MS)
@@ -381,7 +381,7 @@ class HrService : Service(), HrListener {
             lastContact = m.skinContact
             m.skinContact?.let { Telemetry.log("contact", it) }
         }
-        // Без контакта с кожей датчик шлёт мусор или 0; в историю это не пишем.
+        // Without skin contact the sensor sends garbage or 0; this does not go into history.
         if (m.skinContact != false && m.bpm > 0 && now > lastTs) {
             lastTs = now
             scope.launch { bufferLock.withLock { buffer += HrSample(now, m.bpm) } }
@@ -408,7 +408,7 @@ class HrService : Service(), HrListener {
         pushWidget(force = false)
     }
 
-    /** Заряд телефона в журнал - только изменения: по ним видно, сколько тратит приложение. */
+    /** Phone battery to the log - only changes: they show how much the app drains. */
     private fun logPhoneBattery() {
         val bm = getSystemService(BatteryManager::class.java)
         val now = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to bm.isCharging
@@ -417,7 +417,7 @@ class HrService : Service(), HrListener {
         Telemetry.log("pbat", now.first, now.second)
     }
 
-    /** Срез для журнала: пульс, темп шагов и что об этом думает автовыбор. */
+    /** Log snapshot: heart rate, step cadence and what auto selection thinks of them. */
     private fun logSample(bpm: Int, now: Long) {
         val b = alarm.bounds
         val cand = auto.candidate
@@ -434,11 +434,11 @@ class HrService : Service(), HrListener {
     }
 
     override fun onBattery(percent: Int) {
-        // Заряд датчика в журнал - только изменения: по ним видно расход в процентах в час.
+        // Sensor battery to the log - only changes: they show the drain in percent per hour.
         if (percent == LiveHr.state.value.battery) return
         Telemetry.log("bat", percent)
         LiveHr.mutable.value = LiveHr.state.value.copy(battery = percent)
-        // Заряд - в заголовке уведомления; без пульса (датчик снят) его больше ничто не обновит.
+        // Battery is in the notification title; without heart rate (sensor taken off) nothing else would update it.
         notifyNow()
     }
 
@@ -468,8 +468,8 @@ class HrService : Service(), HrListener {
             s.alarm == AlarmZone.LOW -> getString(R.string.notif_bpm_low, s.bpm, alarm.bounds.first)
             else -> getString(R.string.notif_bpm, s.bpm)
         }
-        // Одна строка: заряд рядом с пульсом, имя датчика не нужно - он и так один.
-        // Пока связи нет, заряд устарел - не показываем.
+        // One line: battery next to heart rate, the sensor name is not needed - there is only one.
+        // While there is no link, the battery value is stale - not shown.
         val linked = s.conn == ConnState.CONNECTED || s.conn == ConnState.NO_SIGNAL
         val title = s.battery?.takeIf { linked }?.let { getString(R.string.notif_with_battery, state, it) } ?: state
 
@@ -495,7 +495,7 @@ class HrService : Service(), HrListener {
             .setPriority(if (show) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_MIN)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            // Android 16 Live Update: чип в строке состояния и карточка в Now Bar на экране блокировки.
+            // Android 16 Live Update: a status bar chip and a Now Bar card on the lock screen.
             .setRequestPromotedOngoing(show)
             .setShortCriticalText(if (show && live) "${s.bpm}" else null)
             .build()
@@ -530,14 +530,14 @@ class HrService : Service(), HrListener {
             context.startService(stopIntent(context))
         }
 
-        /** Перерисовать уведомление после смены настроек; если сервис не запущен - ничего. */
+        /** Redraw the notification after a settings change; if the service is not running - nothing. */
         fun refresh(context: Context) {
             if (LiveHr.state.value.conn != ConnState.IDLE) {
                 context.startService(Intent(context, HrService::class.java).setAction(ACTION_REFRESH))
             }
         }
 
-        /** Полная остановка: связь рвётся, автостарт выключен до явного "Старт". */
+        /** Full stop: the link is dropped, autostart is off until an explicit "Start". */
         fun release(context: Context) {
             Prefs(context).released = true
             stop(context)

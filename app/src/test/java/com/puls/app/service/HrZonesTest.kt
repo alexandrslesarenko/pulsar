@@ -69,14 +69,14 @@ class HrZonesTest {
         val from = 23 * 60
         val to = 7 * 60
         assertTrue(HrZones.isSleep(3 * 60, from, to, 5, pedometer = true))
-        // 8:00, шагов не было с вечера - ещё спим.
+        // 8:00, no steps since the evening - still asleep.
         assertTrue(HrZones.isSleep(8 * 60, from, to, 12 * 60, pedometer = true))
         assertTrue(HrZones.isSleep(8 * 60, from, to, null, pedometer = true))
-        // 8:00, шаги в 7:30 - проснулись.
+        // 8:00, steps at 7:30 - awake.
         assertFalse(HrZones.isSleep(8 * 60, from, to, 30, pedometer = true))
-        // Утро ограничено: в 10:00 сна уже нет, даже без шагов.
+        // The morning is limited: at 10:00 there is no sleep anymore, even without steps.
         assertFalse(HrZones.isSleep(10 * 60, from, to, null, pedometer = true))
-        // Без шагомера утро не продлеваем.
+        // Without a pedometer the morning is not extended.
         assertFalse(HrZones.isSleep(8 * 60, from, to, null, pedometer = false))
         assertFalse(HrZones.isSleep(20 * 60, from, to, null, pedometer = true))
     }
@@ -88,13 +88,13 @@ class HrZonesTest {
 
     @Test
     fun trainingZone() {
-        // 40 лет: максимум 180, 70-85% -> 126-153.
+        // 40 years: max 180, 70-85% -> 126-153.
         assertEquals(126..153, HrZones.trainingZone(40))
     }
 
     @Test
     fun zoneTableMatchesProfileRanges() {
-        // Зона 2 из таблицы - тот же коридор, что у прогулки в режиме "авто".
+        // Zone 2 from the table - the same range as walk in "auto" mode.
         val (lo, hi) = HrZones.ZONE_PCT[1]
         assertEquals(HrZones.walkZone(50), HrZones.pctRange(50, lo, hi))
         assertEquals(85..102, HrZones.pctRange(50, 50, 60))

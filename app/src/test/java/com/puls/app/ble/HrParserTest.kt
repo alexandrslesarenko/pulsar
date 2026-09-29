@@ -23,7 +23,7 @@ class HrParserTest {
 
     @Test
     fun contactAndRr() {
-        // флаги: контакт поддерживается и есть, RR присутствует; RR = 1024 и 512 (1/1024 с)
+        // flags: contact supported and present, RR present; RR = 1024 and 512 (1/1024 s)
         val m = HrParser.parse(bytes(0x16, 60, 0x00, 0x04, 0x00, 0x02))!!
         assertEquals(60, m.bpm)
         assertEquals(true, m.skinContact)

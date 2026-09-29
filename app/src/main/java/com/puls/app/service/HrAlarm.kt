@@ -16,22 +16,22 @@ enum class AlarmZone { NORMAL, HIGH, LOW }
 enum class AlarmEvent { HIGH, LOW, BACK, LOST }
 
 /**
- * Сигналы о коридоре пульса [low, high], различимые на ощупь на ходу:
- * - выше: 3 длинных импульса, пауза 5 с, повтор;
- * - ниже: 4 коротких, пауза 5 с, повтор;
- * - вернулся в коридор: 1 короткий;
- * - нет данных дольше LOST_AFTER_MS: длинный-короткий-длинный, один раз;
- * - автовыбор сменил профиль: 2 средних, один раз.
- * Повтор идёт до возврата пульса в коридор или до mute (mute - до конца текущего выхода).
- * Выход из зоны с запасом HYSTERESIS, чтобы пульс у самой границы не дёргал сигнал.
+ * Heart rate range [low, high] alarms, distinguishable by touch on the move:
+ * - above: 3 long pulses, 5 s pause, repeat;
+ * - below: 4 short ones, 5 s pause, repeat;
+ * - back in range: 1 short;
+ * - no data for longer than LOST_AFTER_MS: long-short-long, once;
+ * - auto selection switched the profile: 2 medium, once.
+ * Repeats until heart rate is back in range or until mute (mute lasts until the end of the current excursion).
+ * Leaving the zone uses a HYSTERESIS margin so heart rate right at the bound does not toggle the alarm.
  *
- * Вибрацию можно выключить в профиле и ночью; тогда события всё равно идут в голос
- * и в уведомление, молчит только вибромотор.
+ * Vibration can be turned off per profile and at night; events still go to the voice
+ * and the notification, only the vibration motor stays silent.
  */
 class HrAlarm(
     context: Context,
     private val prefs: Prefs,
-    /** Границы сигнала: коридор профиля, а в авто - общие границы (см. AutoProfile). */
+    /** Alarm bounds: the profile range, and in auto the overall bounds (see AutoProfile). */
     private val range: () -> IntRange,
     private val onEvent: (AlarmEvent, Int?) -> Unit,
     private val onChange: () -> Unit,
@@ -44,16 +44,16 @@ class HrAlarm(
         private set
     var muted = false
         private set
-    /** Границы, по которым считался последний замер. */
+    /** Bounds the last sample was evaluated against. */
     var bounds: IntRange = range()
         private set
 
     private var candidate = AlarmZone.NORMAL
     private var candidateSince = 0L
-    /** Был сигнал "датчик потерян"; при возврате данных сообщим, где пульс. */
+    /** The "sensor lost" alarm was given; when data comes back we report where heart rate is. */
     private var lostSignaled = false
     private var linkUp = false
-    /** Идёт повторяющийся сигнал. */
+    /** A repeating alarm is in progress. */
     private var vibrating = false
 
     private val lostTimer = Runnable {
@@ -74,7 +74,7 @@ class HrAlarm(
             setZone(AlarmZone.NORMAL, silent = true)
             return
         }
-        // Ночь могла начаться посреди повторяющегося сигнала.
+        // The night could have started in the middle of a repeating alarm.
         if (vibrating && !vibrationAllowed()) {
             vibrating = false
             vibrator.cancel()
@@ -94,7 +94,7 @@ class HrAlarm(
             else -> AlarmZone.NORMAL
         }
         if (lostSignaled) {
-            // Данные вернулись после потери: сразу сообщаем текущее положение.
+            // Data came back after a loss: report the current position right away.
             lostSignaled = false
             candidate = target
             if (target == AlarmZone.NORMAL) {
@@ -119,11 +119,11 @@ class HrAlarm(
             candidate = target
             candidateSince = now
         }
-        // Одиночный выброс датчика не должен будить; ждём, пока выход подтвердится.
+        // A single sensor outlier should not wake anyone; wait until the excursion is confirmed.
         if (now - candidateSince >= CONFIRM_MS) setZone(target, silent = false, bpm = bpm)
     }
 
-    /** Данные перестали приходить (снят, нет контакта, обрыв связи). */
+    /** Data stopped coming (taken off, no contact, link lost). */
     fun onLinkLost() {
         candidate = AlarmZone.NORMAL
         if (zone != AlarmZone.NORMAL) setZone(AlarmZone.NORMAL, silent = true)
@@ -134,7 +134,7 @@ class HrAlarm(
         }
     }
 
-    /** Можно ли сейчас вибрировать: так настроен профиль и сейчас не ночь. */
+    /** Whether vibration is allowed now: the profile is set so and it is not night. */
     fun vibrationAllowed(now: LocalTime = LocalTime.now()): Boolean {
         if (!prefs.vibrate(prefs.profile)) return false
         if (!prefs.nightQuiet) return true
@@ -153,8 +153,8 @@ class HrAlarm(
     }
 
     /**
-     * Автовыбор сменил профиль: сигнал о прежнем коридоре молча снимаем (иначе будет ложное
-     * "выше" или "в норме") и даём знать о смене - вибрацией нового профиля.
+     * Auto selection switched the profile: the alarm about the previous range is cleared silently (otherwise
+     * there would be a false "above" or "normal") and the switch is announced with the new profile's vibration.
      */
     fun profileSwitched() {
         candidate = AlarmZone.NORMAL
@@ -164,7 +164,7 @@ class HrAlarm(
         onChange()
     }
 
-    /** Сбор остановлен пользователем: молча забываем всё. */
+    /** Collection stopped by the user: silently forget everything. */
     fun reset() {
         main.removeCallbacks(lostTimer)
         linkUp = false
@@ -189,7 +189,7 @@ class HrAlarm(
     private fun play(pattern: LongArray, repeat: Boolean) {
         vibrating = false
         if (!vibrationAllowed()) return
-        // Чётные позиции - пауза, нечётные - импульс на полную силу.
+        // Even positions are pauses, odd ones are pulses at full strength.
         val amplitudes = IntArray(pattern.size) { if (it % 2 == 1) MAX_AMPLITUDE else 0 }
         val effect = VibrationEffect.createWaveform(pattern, amplitudes, if (repeat) 0 else -1)
         vibrator.cancel()

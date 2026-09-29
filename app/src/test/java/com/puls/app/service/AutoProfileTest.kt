@@ -13,7 +13,7 @@ class AutoProfileTest {
         Profile.TRAINING to 119..145,
     )
 
-    /** Сценарий посекундных замеров; profile - активный профиль после каждой смены. */
+    /** Scenario of per-second samples; profile - the active profile after each switch. */
     private inner class Run(var profile: Profile) {
         val auto = AutoProfile()
         var t = 0L
@@ -34,7 +34,7 @@ class AutoProfileTest {
         r.go(60, 80, 0.0)
         r.go(90, 90, 100.0)
         assertEquals(Profile.WALK, r.profile)
-        // Прогулка подтверждается через минуту после первых шагов.
+        // Walk is confirmed a minute after the first steps.
         assertTrue(r.switches.single().first in 115_000L..125_000L)
     }
 
@@ -60,7 +60,7 @@ class AutoProfileTest {
     fun recoveryAfterWalkHoldsProfile() {
         val r = Run(Profile.WALK)
         r.go(60, 115, 100.0)
-        // Стоим 10 минут, пульс между покоем и тренировкой.
+        // Standing for 10 minutes, heart rate between rest and training.
         r.go(600, 108, 0.0)
         assertEquals(Profile.WALK, r.profile)
     }
@@ -91,7 +91,7 @@ class AutoProfileTest {
 
     @Test
     fun highPulseWithoutStepsIsNotTraining() {
-        // Дела по дому с телефоном на столе или игра: пульс тренировки, шагов нет.
+        // Housework with the phone on the table or gaming: training heart rate, no steps.
         val r = Run(Profile.REST)
         r.go(600, 135, 0.0)
         assertEquals(Profile.REST, r.profile)
@@ -108,7 +108,7 @@ class AutoProfileTest {
     @Test
     fun hysteresisKeepsTrainingJustBelowItsRange() {
         val r = Run(Profile.TRAINING)
-        // 116 ниже коридора тренировки (119), но выше порога выхода 119 - 5.
+        // 116 is below the training range (119), but above the exit threshold 119 - 5.
         r.go(600, 116, 100.0)
         assertEquals(Profile.TRAINING, r.profile)
         r.go(600, 110, 100.0)
@@ -129,7 +129,7 @@ class AutoProfileTest {
         r.go(70, 90, 100.0)
         assertEquals(Profile.WALK, r.profile)
         val walkAt = r.switches.single().first
-        // Сразу бег: подтверждение 2 мин, но и после него ждём конца MIN_DWELL_MS.
+        // Running right away: confirmation takes 2 min, but even after it we wait for MIN_DWELL_MS to end.
         r.go(400, 150, 160.0)
         val trainAt = r.switches.last().first
         assertEquals(Profile.TRAINING, r.profile)
@@ -154,7 +154,7 @@ class AutoProfileTest {
         r.go(60, 108, 0.0)
         assertTrue(r.auto.restHigh)
         assertEquals(Profile.REST, r.profile)
-        // Пошли - сигнал держится до смены профиля.
+        // Started walking - the alarm holds until the profile switches.
         r.go(20, 108, 100.0)
         assertTrue(r.auto.restHigh)
         r.go(60, 108, 100.0)

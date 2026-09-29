@@ -3,9 +3,9 @@ package com.puls.app.data
 import com.puls.app.service.Profile
 
 /**
- * Контракт с приложением Calorie: какие минуты прогулок и тренировок и с каким пульсом
- * Pulsar отдаёт через ActivityProvider. Всё, что здесь, видит другое приложение -
- * authority, путь, колонки и значения режима не переименовывать.
+ * Contract with the Calorie app: which minutes of walks and workouts, and with what heart rate,
+ * Pulsar serves through ActivityProvider. Everything here is visible to another app -
+ * do not rename the authority, path, columns or mode values.
  */
 object ActivityShare {
     const val AUTHORITY = "com.puls.app.activity"
@@ -13,23 +13,23 @@ object ActivityShare {
     const val PARAM_FROM = "from"
     const val PARAM_TO = "to"
 
-    /** Колонки: начало минуты (мс), режим ("walk" / "training"), средний пульс, число замеров. */
+    /** Columns: minute start (ms), mode ("walk" / "training"), average heart rate, sample count. */
     const val COL_MINUTE = "minute"
     const val COL_MODE = "mode"
     const val COL_BPM = "bpm"
     const val COL_SAMPLES = "samples"
     val COLUMNS = arrayOf(COL_MINUTE, COL_MODE, COL_BPM, COL_SAMPLES)
 
-    /** Режимы с нагрузкой; покой не отдаём - его расход уже в основном обмене. */
+    /** Modes with exertion; rest is not served - its expenditure is already in the basal metabolism. */
     val ACTIVE = setOf(Profile.WALK.key, Profile.TRAINING.key)
 
     data class Interval(val from: Long, val to: Long, val mode: String)
 
     /**
-     * Интервалы прогулок и тренировок внутри [from, to) по журналу режимов. marks - записи,
-     * действовавшие в окне (последняя до from и все внутри, по возрастанию ts), как отдаёт
-     * HrDao.marks. Соседние интервалы одного режима склеиваются: правка коридора пишет
-     * новую запись того же режима.
+     * Walk and workout intervals inside [from, to) from the mode log. marks - records in effect
+     * in the window (the last one before from and all inside, ascending by ts), as returned by
+     * HrDao.marks. Adjacent intervals of the same mode are merged: editing the range writes
+     * a new record of the same mode.
      */
     fun intervals(marks: List<ProfileMark>, from: Long, to: Long): List<Interval> {
         val out = mutableListOf<Interval>()

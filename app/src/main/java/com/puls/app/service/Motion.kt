@@ -14,14 +14,14 @@ import android.os.SystemClock
 import android.util.Log
 import com.puls.app.data.MotionSample
 
-/** Примерная скорость по шагам: темп x длина шага. */
+/** Approximate speed from steps: cadence x stride length. */
 object Speed {
-    /** Ниже этого темпа считаем, что человек стоит: одиночные шаги по комнате - не движение. */
+    /** Below this cadence the person is considered standing: single steps around the room are not motion. */
     private const val MIN_CADENCE = 30.0
 
     /**
-     * Длина шага, м. При ходьбе около 0.415 роста, при беге до 0.65: между темпом 120 и 160
-     * шагов в минуту растёт линейно.
+     * Stride length, m. About 0.415 of height when walking, up to 0.65 when running: between cadence 120 and 160
+     * steps per minute it grows linearly.
      */
     fun strideM(heightCm: Int, cadenceSpm: Double): Double {
         val k = when {
@@ -32,7 +32,7 @@ object Speed {
         return heightCm / 100.0 * k
     }
 
-    /** Скорость, км/ч, по числу шагов за durMs. */
+    /** Speed, km/h, from the number of steps over durMs. */
     fun fromSteps(steps: Int, durMs: Long, heightCm: Int): Double {
         if (durMs <= 0) return 0.0
         val cadence = steps * 60_000.0 / durMs
@@ -40,7 +40,7 @@ object Speed {
         return cadence * strideM(heightCm, cadence) * 60 / 1000
     }
 
-    /** Скорость отрезка, км/ч: GPS, если он был, иначе по шагам; null - данных нет или рост не указан. */
+    /** Segment speed, km/h: GPS if it was on, otherwise from steps; null - no data or height not set. */
     fun of(samples: List<MotionSample>, heightCm: Int): Double? {
         val gps = samples.mapNotNull { it.gpsMps }
         if (gps.isNotEmpty()) return gps.average() * 3.6
@@ -51,8 +51,8 @@ object Speed {
 }
 
 /**
- * Шаги и скорость GPS за интервалы между take(). Счётчик шагов - аппаратный, считает
- * сам в экономичном сопроцессоре; события приходят пачками, когда процессор и так проснулся.
+ * Steps and GPS speed over intervals between take() calls. The step counter is a hardware one, it counts
+ * by itself in a low-power coprocessor; events come in batches when the CPU is awake anyway.
  */
 @SuppressLint("MissingPermission")
 class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : SensorEventListener, LocationListener {
@@ -62,14 +62,14 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
 
     var stepsOn = false
         private set
-    /** Счётчик зарегистрирован с короткой задержкой (для автовыбора профиля). */
+    /** The counter is registered with a short latency (for automatic profile selection). */
     private var stepsFast = false
-    /** Темп шагов для автовыбора профиля: считается по каждому показанию, а не раз в минуту. */
+    /** Step cadence for automatic profile selection: computed on every reading, not once a minute. */
     val cadence = Cadence()
     var gpsOn = false
         private set
 
-    /** Показание счётчика (шаги с загрузки) на начало интервала и последнее. */
+    /** Counter reading (steps since boot) at the start of the interval, and the latest one. */
     private var baseCount = -1L
     private var lastCount = -1L
     private var since = System.currentTimeMillis()
@@ -77,8 +77,8 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
     private var gpsN = 0
 
     /**
-     * fast - короткая задержка доставки: автовыбору профиля темп нужен сейчас, а не через
-     * полминуты. Процессор и так просыпается каждую секунду на пульс с датчика.
+     * fast - short delivery latency: automatic profile selection needs the cadence now, not half a minute
+     * later. The CPU wakes up every second anyway for the heart rate from the sensor.
      */
     fun startSteps(fast: Boolean) {
         if (stepSensor == null || (stepsOn && stepsFast == fast)) return
@@ -119,7 +119,7 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
         stopGps()
     }
 
-    /** Интервал с прошлого вызова; null - ни шагомер, ни GPS не работали. */
+    /** Interval since the previous call; null - neither pedometer nor GPS was working. */
     fun take(now: Long): MotionSample? {
         val dur = now - since
         since = now
@@ -134,10 +134,10 @@ class MotionTracker(context: Context, private val onLive: (Double?) -> Unit) : S
 
     override fun onSensorChanged(e: SensorEvent) {
         val c = e.values[0].toLong()
-        // После перезагрузки счётчик начинается с нуля.
+        // After a reboot the counter starts from zero.
         if (baseCount < 0 || c < lastCount) baseCount = c
         lastCount = c
-        // timestamp события - в часах elapsedRealtime; пачка показаний приходит с опозданием.
+        // Event timestamp is on the elapsedRealtime clock; a batch of readings arrives late.
         val ts = System.currentTimeMillis() - (SystemClock.elapsedRealtimeNanos() - e.timestamp) / 1_000_000
         cadence.add(ts, c)
     }

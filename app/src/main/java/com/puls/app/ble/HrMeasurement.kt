@@ -2,13 +2,13 @@ package com.puls.app.ble
 
 data class HrMeasurement(
     val bpm: Int,
-    /** null - датчик не сообщает о контакте с кожей. */
+    /** null - the sensor does not report skin contact. */
     val skinContact: Boolean?,
     val energyKj: Int?,
     val rrMs: List<Int>,
 )
 
-/** Разбор характеристики Heart Rate Measurement (0x2A37) по спецификации Heart Rate Service. */
+/** Parser of the Heart Rate Measurement characteristic (0x2A37) per the Heart Rate Service spec. */
 object HrParser {
     private const val FLAG_UINT16 = 0x01
     private const val FLAG_CONTACT_DETECTED = 0x02
@@ -41,7 +41,7 @@ object HrParser {
         val rr = ArrayList<Int>()
         if (flags and FLAG_RR != 0) {
             while (i + 1 < data.size) {
-                // RR передаётся в единицах 1/1024 с
+                // RR comes in units of 1/1024 s
                 rr += (u16(data, i) * 1000 + 512) / 1024
                 i += 2
             }

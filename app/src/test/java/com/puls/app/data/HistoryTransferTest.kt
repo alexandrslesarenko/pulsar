@@ -32,13 +32,13 @@ class HistoryTransferTest {
     @Test
     fun badRowsAreSkipped() {
         val csv = "epoch_ms,bpm\n" +
-            "1789000000000,0\n" + // пульс 0
-            "1789000000000,400\n" + // пульс вне диапазона
-            "123,70\n" + // дата до 2000 года
-            "${now + 100_000_000},70\n" + // дата из будущего
-            "abc,70\n" + // не число
-            "1789000000000\n" + // нет колонки
-            "\n" + // пустая строка - не считается
+            "1789000000000,0\n" + // heart rate 0
+            "1789000000000,400\n" + // heart rate out of range
+            "123,70\n" + // date before 2000
+            "${now + 100_000_000},70\n" + // date in the future
+            "abc,70\n" + // not a number
+            "1789000000000\n" + // missing column
+            "\n" + // empty line - not counted
             "1789000002000,90\n"
         val (ok, bad) = run(csv)
         assertEquals(listOf(HrSample(1789000002000, 90)), ok)

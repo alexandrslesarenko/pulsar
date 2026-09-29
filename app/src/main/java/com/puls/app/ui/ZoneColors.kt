@@ -3,14 +3,14 @@ package com.puls.app.ui
 import androidx.compose.ui.graphics.Color
 import com.puls.app.service.Profile
 
-/** Цвета зон коридора пульса: общие для графиков и виджета. */
+/** Colors of the heart rate range zones: shared by charts and the widget. */
 object ZoneColors {
     val High = Color(0xFFE5484D)
     val In = Color(0xFF2FB36B)
     val Low = Color(0xFFE0A100)
 }
 
-/** Цвета профилей для фона истории: бледные, чтобы линия пульса поверх них читалась. */
+/** Profile colors for the history background: pale, so the heart rate line on top of them stays readable. */
 fun profileColor(p: Profile): Color = when (p) {
     Profile.REST -> Color(0xFF4C8DF6)
     Profile.WALK -> Color(0xFF9EDFA4)
@@ -18,8 +18,8 @@ fun profileColor(p: Profile): Color = when (p) {
 }
 
 /**
- * Цвет профиля для текста на выделенном чипе. Бледные цвета фона истории на светлом
- * чипе не читаются, поэтому в светлой теме тона темнее; подобраны на контраст от 4.5.
+ * Profile color for text on a selected chip. The pale history background colors are unreadable
+ * on a light chip, so the light theme uses darker tones; chosen for a contrast of 4.5 or more.
  */
 fun profileTextColor(p: Profile, dark: Boolean): Color = if (dark) {
     when (p) {

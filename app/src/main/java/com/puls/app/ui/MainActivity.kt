@@ -170,10 +170,10 @@ private val SLIDER_THUMB_INSET = 1.dp
 private const val UNSET = "--"
 private const val NIGHT_STEP_MIN = 30
 
-/** Не null - карточки настроек показываются отдельной страницей с кнопкой назад. */
+/** Non-null - settings cards are shown as a separate page with a back button. */
 private val LocalSettingsBack = compositionLocalOf<(() -> Unit)?> { null }
 
-/** Пункты настроек в порядке плиток: откуда данные -> как реагировать -> где показывать -> куда сохранять. */
+/** Settings items in tile order: where data comes from -> how to react -> where to show -> where to save. */
 private enum class SettingsPage(@StringRes val title: Int, @DrawableRes val icon: Int, val color: Color) {
     SENSOR(R.string.sensor_title, R.drawable.ic_set_bluetooth, Color(0xFF3F8FE8)),
     ABOUT(R.string.about_title, R.drawable.ic_set_person, Color(0xFF26A69A)),
@@ -189,18 +189,18 @@ private enum class SettingsPage(@StringRes val title: Int, @DrawableRes val icon
 }
 private val ZONE_BADGE_COLUMN = 48.dp
 /**
- * Языки приложения: тег и самоназвание. Самоназвание не переводится - свой язык
- * должно быть легко найти, в каком бы языке ни открылось приложение.
+ * App languages: tag and native name. The native name is not translated - one's own language
+ * must be easy to find whatever language the app opened in.
  */
 private val APP_LANGUAGES = listOf(
     "en" to "English", "ru" to "Русский", "de" to "Deutsch", "fr" to "Français",
     "es" to "Español", "it" to "Italiano", "ja" to "日本語", "ko" to "한국어", "zh-CN" to "简体中文",
 )
-/** Цвета зон 1-5 по привычной шкале спортивных часов: от спокойного к максимальному. */
+/** Colors of zones 1-5 on the familiar sports watch scale: from calm to maximum. */
 private val ZONE_COLORS = listOf(
     Color(0xFF8E9AA6), Color(0xFF3F8FE8), Color(0xFF3BA55C), Color(0xFFE8912D), Color(0xFFE5484D),
 )
-/** Сколько мс устройство остаётся в списке выбора после последнего пакета рекламы. */
+/** How many ms a device stays in the picker list after the last advertising packet. */
 private const val FOUND_STALE_MS = 20_000L
 private const val SLEEP_LOW_MIN = 30
 private const val SLEEP_LOW_MAX = 59
@@ -228,20 +228,20 @@ class MainActivity : ComponentActivity() {
     private var hcResult by mutableStateOf<String?>(null)
     private var autoSearching by mutableStateOf(false)
     private var released by mutableStateOf(false)
-    /** Возраст из даты рождения; общий для карточки даты и карточки коридора. */
+    /** Age from the date of birth; shared by the date card and the range card. */
     private var age by mutableStateOf<Int?>(null)
     private var profile by mutableStateOf(Profile.REST)
     private var autoProfile by mutableStateOf(false)
-    /** Копия prefs.stepsEnabled для экрана: от неё зависит, доступно ли "Авто". */
+    /** Copy of prefs.stepsEnabled for the screen: it decides whether "Auto" is available. */
     private var stepsEnabled by mutableStateOf(false)
     private var themeMode by mutableStateOf(Prefs.THEME_SYSTEM)
-    /** Язык приложения, выбранный вручную (тег); "" - как в системе. */
+    /** App language chosen manually (tag); "" - follow the system. */
     private var appLanguage by mutableStateOf("")
-    /** Открытый пункт настроек; null - плитки. */
+    /** Open settings item; null - tiles. */
     private var settingsPage by mutableStateOf<SettingsPage?>(null)
-    /** Коридор активного профиля для живого графика; раскрашивается и при выключенном сигнале. */
+    /** Range of the active profile for the live chart; colored even with the alarm off. */
     private var corridor by mutableStateOf<IntRange?>(null)
-    /** Палец на колесе даты: прокрутка страницы отключена, иначе она уводит жест у колеса. */
+    /** Finger on the date wheel: page scrolling is disabled, otherwise it steals the gesture from the wheel. */
     private var wheelTouched by mutableStateOf(false)
     private var autoJob: Job? = null
 
@@ -289,11 +289,11 @@ class MainActivity : ComponentActivity() {
         autoProfile = prefs.autoProfile
         stepsEnabled = prefs.stepsEnabled
         corridorChanged()
-        // Автовыбор меняет профиль в сервисе; экран узнаёт об этом из LiveHr.
+        // Auto selection changes the profile in the service; the screen learns about it from LiveHr.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // Только смены профиля: на каждом замере старое значение из сервиса
-                // откатило бы только что нажатый вручную профиль.
+                // Profile changes only: on every sample the old value from the service
+                // would roll back a profile just picked manually.
                 LiveHr.state.map { it.profile }.distinctUntilChanged().collect { p ->
                     if (p != null && p != profile) {
                         profile = p
@@ -304,7 +304,7 @@ class MainActivity : ComponentActivity() {
         }
         themeMode = prefs.theme
         appLanguage = currentAppLanguage()
-        // Смена языка пересоздаёт экран: остаёмся на той же странице настроек.
+        // A language change recreates the screen: stay on the same settings page.
         settingsPage = savedInstanceState?.getString(STATE_SETTINGS_PAGE)?.let { n -> SettingsPage.entries.firstOrNull { it.name == n } }
         granted = hasPermissions()
         if (!granted) permLauncher.launch(permissions)
@@ -314,8 +314,8 @@ class MainActivity : ComponentActivity() {
                 Prefs.THEME_DARK -> true
                 else -> isSystemInDarkTheme()
             }
-            // Значки строки состояния - по теме приложения, а не системы: иначе светлая тема
-            // в тёмной системе получит белые значки на белом.
+            // Status bar icons follow the app theme, not the system one: otherwise the light theme
+            // in a dark system gets white icons on white.
             DisposableEffect(dark) {
                 val style = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
@@ -344,7 +344,7 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
-    /** Сбор остановлен, но датчик рядом - запускаем сами, без кнопки "Старт". */
+    /** Collection is stopped but the sensor is nearby - start it ourselves, without the "Start" button. */
     private fun autoStartIfNearby() {
         val address = prefs.deviceAddress ?: return
         if (prefs.released) return
@@ -371,7 +371,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Отправка по кнопке: показываем, что идёт и чем кончилось, иначе нажатие выглядит впустую. */
+    /** Sending on a button press: show what is going on and how it ended, otherwise the press looks wasted. */
     private fun syncHealthNow() {
         if (hcBusy) return
         hcBusy = true
@@ -437,7 +437,7 @@ class MainActivity : ComponentActivity() {
                     Tab(
                         selected = pager.currentPage == i,
                         onClick = { scope.launch { pager.animateScrollToPage(i) } },
-                        // При крупном системном шрифте подпись уменьшается, а не рвётся на две строки.
+                        // With a large system font the label shrinks instead of breaking into two lines.
                         text = { OneLineText(stringResource(title)) },
                     )
                 }
@@ -470,7 +470,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // График последних минут растягивается до низа экрана, чтобы экран не пустовал.
+        // The chart of the last minutes stretches to the bottom of the screen so the screen is not empty.
         Column(
             Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -546,8 +546,8 @@ class MainActivity : ComponentActivity() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // Остановить сбор можно в уведомлении или в настройках датчика: на главном экране
-            // кнопку легко задеть, а дыра в истории останется. Старт нужен, только когда сбор стоит.
+            // Collection can be stopped in the notification or in the sensor settings: on the main screen
+            // the button is easy to hit by accident, and a gap in the history would remain. Start is needed only when collection is stopped.
             if (s.conn == ConnState.IDLE) {
                 Spacer(Modifier.height(12.dp))
                 FilledTonalButton(onClick = ::startCollecting) { Text(stringResource(R.string.btn_start)) }
@@ -569,7 +569,7 @@ class MainActivity : ComponentActivity() {
         Card(
             Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                // Выше коридора - красный, ниже - жёлтый, как на графике и виджете.
+                // Above the range - red, below - yellow, as on the chart and the widget.
                 containerColor = if (high) ZoneColors.High else ZoneColors.Low,
                 contentColor = if (high) Color.White else Color.Black,
             ),
@@ -599,9 +599,9 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalLayoutApi::class)
     @Composable
     /**
-     * Кнопки профилей; размер подписей подбирает FitRow, чтобы все три встали в строку.
-     * auto - профиль выбран автоматически: подпись выбранного чипа цветом профиля.
-     * Цвет, а не значок: значок расширяет чип, и ряд уходит на шрифт мельче.
+     * Profile buttons; the label size is picked by FitRow so all three fit in a row.
+     * auto - the profile was chosen automatically: the selected chip label is in the profile color.
+     * A color, not an icon: an icon widens the chip, and the row drops to a smaller font.
      */
     private fun ProfileChips(selected: Profile, auto: Boolean = false, onSelect: (Profile) -> Unit) {
         FitRow { style ->
@@ -625,9 +625,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Главный экран: чипы показывают активный профиль, переключатель под ними - автовыбор.
-     * "Авто" отдельным переключателем, а не четвёртым чипом: четыре чипа при крупном
-     * шрифте в строку не встают, да и это режим, а не профиль.
+     * Main screen: chips show the active profile, the switch below them - auto selection.
+     * "Auto" is a separate switch, not a fourth chip: four chips with a large
+     * font do not fit in a row, and besides it is a mode, not a profile.
      */
     @Composable
     private fun MainProfileChips() {
@@ -644,10 +644,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Автовыбору нужен шагомер: без шагов прогулку от покоя не отличить. */
+    /** Auto selection needs a pedometer: without steps a walk cannot be told from rest. */
     private fun stepsAvailable(): Boolean = stepsEnabled && stepsGranted && hasStepSensor()
 
-    /** Без шагомера в телефоне включать нечего - и подсказка тогда другая. */
+    /** Without a pedometer in the phone there is nothing to turn on - and the hint is different then. */
     private fun hasStepSensor(): Boolean =
         getSystemService(SensorManager::class.java).getDefaultSensor(Sensor.TYPE_STEP_COUNTER) != null
 
@@ -658,14 +658,14 @@ class MainActivity : ComponentActivity() {
         HrService.refresh(this)
     }
 
-    /** Выключили автовыбор: остаётся профиль, который он выбрал последним. */
+    /** Auto selection turned off: the profile it chose last stays. */
     private fun disableAuto() {
         activate(profile)
     }
 
     /**
-     * Активация профиля - только с главного экрана; в настройках профиль лишь редактируется.
-     * Ручной выбор выключает автовыбор: взял управление - значит, сам.
+     * A profile is activated only from the main screen; in settings a profile is only edited.
+     * A manual choice turns auto selection off: took control - so do it yourself.
      */
     private fun activate(p: Profile) {
         prefs.autoProfile = false
@@ -675,7 +675,7 @@ class MainActivity : ComponentActivity() {
         corridorChanged()
     }
 
-    /** Коридор или профиль изменились: обновить экран, уведомление и журнал для истории. */
+    /** The range or the profile changed: update the screen, the notification and the log for the history. */
     private fun corridorChanged(log: Boolean = true) {
         corridor = prefs.range(prefs.profile)
         HrService.refresh(this)
@@ -685,7 +685,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalLayoutApi::class)
     @Composable
     private fun ModeSettings() {
-        // Какой профиль редактируем; открываем активный, но выбор здесь его не активирует.
+        // Which profile is being edited; the active one opens first, but choosing here does not activate it.
         var p by remember { mutableStateOf(profile) }
         var enabled by remember(p) { mutableStateOf(prefs.alarmEnabled(p)) }
         var lo by remember(p, age) { mutableStateOf(prefs.range(p).first) }
@@ -694,7 +694,7 @@ class MainActivity : ComponentActivity() {
         var vibrate by remember(p) { mutableStateOf(prefs.vibrate(p)) }
         val a = age
         val locked = p == Profile.WALK && auto && a != null
-        // Ползунок и кнопки легко задеть при прокрутке, поэтому коридор правится только после "Изменить".
+        // The slider and buttons are easy to hit while scrolling, so the range is edited only after "Edit".
         var editing by remember(p) { mutableStateOf(false) }
         var isDefault by remember(p, age) { mutableStateOf(prefs.isDefaultRange(p)) }
         fun save(newLo: Int, newHi: Int, log: Boolean) {
@@ -730,10 +730,10 @@ class MainActivity : ComponentActivity() {
             RangeSlider(
                 value = lo.toFloat()..hi.toFloat(),
                 onValueChange = { r -> save(r.start.roundToInt(), r.endInclusive.roundToInt(), log = false) },
-                // Ползунок меняет значение много раз в секунду; в журнал пишем, когда палец отпущен.
+                // The slider changes the value many times a second; the log is written when the finger is released.
                 onValueChangeFinished = { corridorChanged() },
                 valueRange = ALARM_MIN.toFloat()..ALARM_MAX.toFloat(),
-                // Коридор нужен и для раскраски истории, поэтому правится и при выключенном сигнале.
+                // The range is needed for history coloring too, so it is editable even with the alarm off.
                 enabled = editing && !locked,
             )
             ReferenceScale(p, a)
@@ -761,14 +761,14 @@ class MainActivity : ComponentActivity() {
                     corridorChanged()
                 }) { Text(stringResource(R.string.corridor_default), maxLines = 1, style = style) }
             }
-            // Переключатель расчёта по возрасту - тоже часть коридора, поэтому только в режиме правки.
+            // The age-based calculation switch is part of the range too, so only in edit mode.
             if (p == Profile.WALK && (editing || a == null)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.walk_auto), Modifier.weight(1f))
                     Switch(checked = auto && a != null, enabled = a != null, onCheckedChange = {
                         auto = it
                         prefs.walkAuto = it
-                        // Выключили авто - начинаем ручную правку с расчётного коридора.
+                        // Auto turned off - manual editing starts from the calculated range.
                         if (!it && a != null) HrZones.walkZone(a).let { w -> prefs.setRange(p, w.first, w.last) }
                         lo = prefs.range(p).first
                         hi = prefs.range(p).last
@@ -822,7 +822,7 @@ class MainActivity : ComponentActivity() {
         var on by remember { mutableStateOf(prefs.stepsEnabled) }
         SettingsCard(stringResource(R.string.steps_speed_title), help = stringResource(R.string.speed_desc)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // Переключатель - только шагомер: GPS в тренировке включается на странице режимов.
+                // The switch is for the pedometer only: GPS in training is turned on on the modes page.
                 Text(stringResource(if (on && stepsGranted) R.string.steps_on else R.string.steps_off), Modifier.weight(1f))
                 Switch(checked = on && stepsGranted, onCheckedChange = {
                     on = it
@@ -858,9 +858,9 @@ class MainActivity : ComponentActivity() {
             prefs.sleepLow = sleepLow
             HrService.refresh(this@MainActivity)
         }
-        // Часы ночи общие: по ним и тишина вибрации, и граница сна, поэтому правятся всегда.
+        // Night hours are shared: both vibration silence and the sleep bound use them, so they are always editable.
         SettingsCard(stringResource(R.string.tile_night_title), help = stringResource(R.string.night_desc)) {
-            // Переключатель показывает вибрацию, а не тишину: включённый "Без вибрации" читался наоборот.
+            // The switch shows vibration, not silence: "No vibration" turned on read backwards.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(if (quiet) R.string.night_vibrate_off else R.string.night_vibrate_on), Modifier.weight(1f))
                 Switch(checked = !quiet, onCheckedChange = {
@@ -889,8 +889,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Справочная полоса под ползунком для выбранного профиля: норма в покое, зона прогулки
-     * или зона тренировки по возрасту. Без даты рождения у прогулки и тренировки её нет.
+     * Reference band under the slider for the selected profile: normal resting heart rate, the walk zone
+     * or the training zone by age. Without a date of birth walk and training have none.
      */
     @Composable
     private fun ReferenceScale(p: Profile, age: Int?) {
@@ -910,7 +910,7 @@ class MainActivity : ComponentActivity() {
         val labelStyle = TextStyle(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val color = profileColor(p)
         Canvas(Modifier.fillMaxWidth().height(34.dp)) {
-            // Значения RangeSlider (Material 3) растянуты почти на всю ширину трека; отступ сверен замером.
+            // RangeSlider (Material 3) values span almost the whole track width; the padding is checked by measurement.
             val inset = SLIDER_THUMB_INSET.toPx()
             val w = size.width - inset * 2
             fun x(v: Int) = inset + (v - ALARM_MIN).toFloat() / (ALARM_MAX - ALARM_MIN) * w
@@ -983,7 +983,7 @@ class MainActivity : ComponentActivity() {
         val heights = remember { listOf(0) + (HEIGHT_MIN..HEIGHT_MAX) }
         fun setHeight(v: Int) {
             height = v
-            // Сервис читает рост при каждом расчёте скорости, перезапускать его не нужно.
+            // The service reads the height on every speed calculation, no need to restart it.
             prefs.heightCm = v
         }
         var y by remember { mutableStateOf(prefs.birthYear) }
@@ -1005,12 +1005,12 @@ class MainActivity : ComponentActivity() {
             prefs.birthMonth = m
             prefs.birthDay = d
             age = prefs.age
-            // От возраста зависит коридор прогулки в режиме "авто".
+            // The walk range in "auto" mode depends on age.
             corridorChanged()
         }
 
         val a = age
-        // Колёса и кнопки легко задеть при прокрутке настроек, поэтому по умолчанию данные только показываются.
+        // The wheels and buttons are easy to hit while scrolling settings, so by default data is only displayed.
         var editing by remember { mutableStateOf(false) }
         SettingsCard(stringResource(R.string.about_title), help = stringResource(R.string.about_desc)) {
             if (!editing) {
@@ -1066,7 +1066,7 @@ class MainActivity : ComponentActivity() {
                     onChange = { setHeight(heights[it]) },
                     modifier = Modifier.weight(1.2f),
                 )
-                // Ширина колеса - как у года рождения.
+                // Wheel width - the same as for the birth year.
                 Spacer(Modifier.weight(2f))
             }
             OutlinedButton(onClick = { editing = false }) { Text(stringResource(R.string.birth_done)) }
@@ -1074,8 +1074,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Таблица зон пульса для пояснения в карточке сигнала: номер в цветном кружке,
-     * доля от максимума, пульс для возраста (если известен), под ними - что это за нагрузка.
+     * Heart rate zones table for the help in the alarm card: number in a colored circle,
+     * share of max, heart rate for the age (if known), and below them - what kind of load it is.
      */
     @Composable
     private fun ZonesTable(age: Int?) {
@@ -1121,7 +1121,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Пара кнопок "меньше / больше" в стиле остальных кнопок настроек: контурные, со стрелками. */
+    /** A pair of "less / more" buttons in the style of the other settings buttons: outlined, with arrows. */
     @Composable
     private fun StepButtons(enabled: Boolean, onDec: () -> Unit, onInc: () -> Unit) {
         OutlinedButton(enabled = enabled, onClick = onDec) {
@@ -1140,7 +1140,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Дата рождения текстом: "15 марта 1975", "март 1975" или "1975"; null - не указана. */
+    /** Date of birth as text: "15 March 1975", "March 1975" or "1975"; null - not set. */
     private fun birthText(y: Int, m: Int, d: Int, locale: Locale): String? = when {
         y == 0 -> null
         m == 0 -> y.toString()
@@ -1148,7 +1148,7 @@ class MainActivity : ComponentActivity() {
         else -> LocalDate.of(y, m, d).format(DateTimeFormatter.ofPattern("d MMMM yyyy", locale))
     }
 
-    /** Колесо выбора (системный NumberPicker); values[index] - текущее значение. */
+    /** Picker wheel (system NumberPicker); values[index] - the current value. */
     @Composable
     private fun Wheel(
         label: String,
@@ -1178,7 +1178,7 @@ class MainActivity : ComponentActivity() {
                 },
                 update = { p ->
                     if (p.displayedValues?.toList() != values) {
-                        // Сначала снять старые подписи: иначе смена maxValue упадёт на несовпадении длины.
+                        // Remove the old labels first: otherwise changing maxValue crashes on a length mismatch.
                         p.displayedValues = null
                         p.minValue = 0
                         p.maxValue = values.size - 1
@@ -1205,7 +1205,7 @@ class MainActivity : ComponentActivity() {
         var shake by remember { mutableStateOf(prefs.shakeEnabled) }
         val headphones = remember { voice.headphonesConnected() }
         val lang by voice.lang.collectAsStateWithLifecycle()
-        // Вернулись из установки голоса - перепроверить.
+        // Back from voice installation - re-check.
         LifecycleResumeEffect(Unit) {
             voice.recheckLanguage()
             onPauseOrDispose {}
@@ -1259,8 +1259,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Установка голосов у движка TTS по умолчанию (без пакета система спросит, каким из
-     * движков); если он её не поддерживает - настройки синтеза речи.
+     * Voice installation in the default TTS engine (without a package the system asks which
+     * engine to use); if it does not support that - speech synthesis settings.
      */
     private fun installVoice(engine: String?) {
         runCatching { startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(engine)) }
@@ -1275,7 +1275,7 @@ class MainActivity : ComponentActivity() {
             SettingsGrid()
             return
         }
-        // Страница пункта: назад - к плиткам, и стрелкой в заголовке, и системным жестом.
+        // Item page: back goes to the tiles, both with the arrow in the title and with the system gesture.
         BackHandler { settingsPage = null }
         CompositionLocalProvider(LocalSettingsBack provides { settingsPage = null }) {
             Column(
@@ -1300,8 +1300,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Главная страница настроек: плитки в два столбца со значком, названием и коротким
-     * статусом. Над ними - то, что требует действия (нет прав на Now Bar, ограничения батареи).
+     * Main settings page: tiles in two columns with an icon, a title and a short
+     * status. Above them - what needs action (no Now Bar permission, battery restrictions).
      */
     @Composable
     private fun SettingsGrid() {
@@ -1320,7 +1320,7 @@ class MainActivity : ComponentActivity() {
                     Button(onClick = ::requestBatteryUnrestricted) { Text(stringResource(R.string.battery_unrestrict)) }
                 }
             }
-            // Выбор языка приложения есть в системе только с Android 13.
+            // The system has per-app language selection only since Android 13.
             val pages = SettingsPage.entries.filter { it != SettingsPage.LANGUAGE || Build.VERSION.SDK_INT >= 33 }
             pages.chunked(2).forEach { pair ->
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1334,7 +1334,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SettingsTile(p: SettingsPage, status: String, modifier: Modifier) {
         Card(onClick = { settingsPage = p }, modifier = modifier) {
-            // Значок и название в строку, статус под ними: так десять плиток встают на один экран.
+            // Icon and title in a row, status below them: this way ten tiles fit on one screen.
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(
@@ -1343,7 +1343,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Icon(painterResource(p.icon), null, tint = p.color, modifier = Modifier.size(20.dp))
                     }
-                    // Длинное название ("Health Connect") уменьшается, слишком длинное переносится.
+                    // A long title ("Health Connect") shrinks, a too long one wraps.
                     CompositionLocalProvider(LocalTextStyle provides MaterialTheme.typography.titleSmall) {
                         TileTitle(tileTitle(p), Modifier.weight(1f))
                     }
@@ -1358,7 +1358,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Короткий статус пункта для плитки: главное значение, чтобы не открывать пункт зря. */
+    /** Short item status for the tile: the main value, so the item is not opened in vain. */
     @Composable
     private fun tileStatus(p: SettingsPage, live: LiveState): String = when (p) {
         SettingsPage.SENSOR -> stringResource(
@@ -1379,7 +1379,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         SettingsPage.SPEED -> {
-            // Скорость бывает по шагомеру (нужен рост) и по GPS в тренировке - независимо друг от друга.
+            // Speed comes from the pedometer (height needed) and from GPS in training - independently of each other.
             val steps = prefs.stepsEnabled && stepsGranted
             val gps = prefs.gpsInTraining && locationGranted
             when {
@@ -1390,14 +1390,14 @@ class MainActivity : ComponentActivity() {
                 else -> stringResource(R.string.tile_speed_off)
             }
         }
-        // При автовыборе сигнал идёт по общим границам, коридор режима тут ничего не скажет.
+        // With auto selection the alarm uses the overall bounds, the mode range says nothing here.
         SettingsPage.MODES -> if (autoProfile && stepsAvailable()) {
             stringResource(R.string.tile_modes_auto, stringResource(profile.label))
         } else prefs.range(profile).let { r ->
             if (prefs.alarmEnabled(profile)) stringResource(R.string.tile_alarm, stringResource(profile.label), r.first, r.last)
             else stringResource(R.string.tile_alarm_off, stringResource(profile.label))
         }
-        // Часы ночи действуют и без тишины вибрации: по ним граница сна.
+        // Night hours apply even without vibration silence: the sleep bound uses them.
         SettingsPage.NIGHT -> "%02d:%02d-%02d:%02d".format(prefs.nightFrom / 60, prefs.nightFrom % 60, prefs.nightTo / 60, prefs.nightTo % 60)
         SettingsPage.VOICE -> when {
             !prefs.voiceEnabled -> stringResource(R.string.disabled)
@@ -1480,7 +1480,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun HealthSettings() {
         val timeFmt = remember { SimpleDateFormat(dayMonthPattern() + " HH:mm", Locale.getDefault()) }
-        // Отправку делает сервис; пока карточка на экране, перечитываем отметку сами.
+        // Sending is done by the service; while the card is on screen we re-read the mark ourselves.
         LaunchedEffect(Unit) {
             while (true) {
                 hcSyncedUntil = prefs.hcSyncedUntil
@@ -1545,14 +1545,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Заголовок плитки. У языка он всегда по-английски: попавший в незнакомый язык
-     * найдёт плитку по слову "Language". Двуязычный заголовок в плитку не влезает.
+     * Tile title. For language it is always in English: someone who ended up in an unfamiliar language
+     * finds the tile by the word "Language". A bilingual title does not fit in the tile.
      */
     @Composable
     private fun tileTitle(p: SettingsPage): String =
         if (p == SettingsPage.LANGUAGE) LANGUAGE_EN else stringResource(p.title)
 
-    /** Язык хранит система (LocaleManager): тот же выбор виден в настройках Android. */
+    /** The language is stored by the system (LocaleManager): the same choice is visible in Android settings. */
     private fun currentAppLanguage(): String {
         if (Build.VERSION.SDK_INT < 33) return ""
         val list = getSystemService(LocaleManager::class.java).applicationLocales
@@ -1560,8 +1560,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * "Системный (Русский)": слово "системный" - на текущем языке приложения, а язык
-     * системы - самоназванием, чтобы его узнал тот, кто в текущем языке не читает.
+     * "System (Russian)": the word "system" is in the current app language, and the system
+     * language is in its native name, so that someone who cannot read the current language recognizes it.
      */
     @Composable
     private fun systemLanguageLabel(): String {
@@ -1584,7 +1584,7 @@ class MainActivity : ComponentActivity() {
                         onClick = {
                             if (appLanguage == tag || Build.VERSION.SDK_INT < 33) return@FilterChip
                             appLanguage = tag
-                            // Система сама пересоздаст экран уже на новом языке.
+                            // The system recreates the screen in the new language by itself.
                             getSystemService(LocaleManager::class.java).applicationLocales =
                                 if (tag.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tag)
                         },
@@ -1615,14 +1615,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     /**
-     * Карточка настроек. text - короткий статус, виден всегда; help - пояснение, скрыто
-     * и раскрывается значком рядом с заголовком, чтобы не занимать место.
+     * Settings card. text - short status, always visible; help - explanation, hidden
+     * and expanded with an icon next to the title so it does not take space.
      */
     private fun SettingsCard(
         title: String,
         text: String? = null,
         help: String? = null,
-        /** Дополнение к пояснению, которое не уложить в текст (например, таблица). */
+        /** Addition to the explanation that cannot be put into text (for example, a table). */
         helpExtra: (@Composable () -> Unit)? = null,
         actions: @Composable () -> Unit,
     ) {
@@ -1648,8 +1648,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (back != null) {
-            // Отдельная страница пункта: заголовок со стрелкой назад, содержимое - в плитке,
-            // как на главной странице настроек.
+            // Separate item page: a title with a back arrow, the content in a tile,
+            // as on the main settings page.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = back) {
@@ -1682,11 +1682,11 @@ class MainActivity : ComponentActivity() {
         val found = remember { mutableStateMapOf<String, FoundDevice>() }
         var showAll by remember { mutableStateOf(false) }
         var failed by remember { mutableStateOf(false) }
-        // Номер попытки поиска: "Искать заново" начинает поиск с пустого списка.
+        // Search attempt number: "Search again" starts the search from an empty list.
         var round by remember { mutableIntStateOf(0) }
-        // Частые запуски поиска система молча глушит; после нажатия кнопка отдыхает.
+        // The system silently throttles frequent scan starts; after a press the button rests.
         var rescanAt by remember { mutableLongStateOf(0L) }
-        // Раз в пару секунд: включили ли Bluetooth и какие устройства пропали из эфира.
+        // Every couple of seconds: whether Bluetooth was turned on and which devices went off the air.
         val tick by produceState(SystemClock.elapsedRealtime()) {
             while (true) {
                 delay(2_000)
@@ -1727,7 +1727,7 @@ class MainActivity : ComponentActivity() {
                 Text(stringResource(R.string.scan_again), maxLines = 1, style = style)
             }
         }
-        // Датчик, который не слышно дольше FOUND_STALE_MS, выключен или ушёл к другому телефону.
+        // A sensor not heard for longer than FOUND_STALE_MS is off or went to another phone.
         val fresh = found.values.filter { tick - it.seenAt < FOUND_STALE_MS }
         val others = fresh.count { !it.isHrSensor }
         val list = fresh

@@ -16,9 +16,9 @@ import java.util.zip.GZIPOutputStream
 data class ImportResult(val added: Int, val existing: Int, val skipped: Int, val lastTs: Long)
 
 /**
- * Перенос всей истории между телефонами: CSV "epoch_ms,bpm" в gzip.
- * Импорт принимает и gzip, и обычный CSV, в том числе экспорт за период
- * (там есть лишняя колонка time - её пропускаем по заголовку).
+ * Moving the whole history between phones: CSV "epoch_ms,bpm" in gzip.
+ * Import accepts both gzip and plain CSV, including a per-period export
+ * (it has an extra time column - skipped by the header).
  */
 object HistoryTransfer {
     private const val CHUNK = 5_000
@@ -70,7 +70,7 @@ object HistoryTransfer {
                 if (batch.size >= CHUNK) flush()
             }
             flush()
-            // Импорт может быть с чужого телефона: в Health Connect его не отправляем.
+            // The import may come from another phone: it is not sent to Health Connect.
             if (lastTs > 0) {
                 val prefs = Prefs(context)
                 prefs.hcSyncedUntil = maxOf(prefs.hcSyncedUntil, lastTs)
@@ -79,7 +79,7 @@ object HistoryTransfer {
         }
     }
 
-    /** gzip определяем по сигнатуре 1f 8b, а не по имени файла: имя может потеряться при передаче. */
+    /** gzip is detected by the 1f 8b signature, not by the file name: the name can get lost in transfer. */
     private fun openText(input: InputStream): BufferedReader {
         val buffered = BufferedInputStream(input)
         buffered.mark(2)
@@ -90,8 +90,8 @@ object HistoryTransfer {
     }
 
     /**
-     * Разбирает CSV с заголовком, где есть колонки epoch_ms и bpm (порядок любой).
-     * Для каждой строки данных вызывает onRow: образец или null, если строка негодная.
+     * Parses a CSV with a header that has the epoch_ms and bpm columns (in any order).
+     * Calls onRow for each data row: the sample, or null if the row is invalid.
      */
     suspend fun parse(reader: BufferedReader, maxTs: Long, onRow: suspend (HrSample?) -> Unit) {
         val header = reader.readLine()?.trim()?.removePrefix("\uFEFF")?.split(',')?.map { it.trim() }

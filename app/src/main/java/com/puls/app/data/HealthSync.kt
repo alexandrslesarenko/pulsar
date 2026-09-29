@@ -12,9 +12,9 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Переносит измерения из локальной БД в Health Connect.
- * Одна запись HeartRateRecord на минуту; clientRecordId = начало минуты, поэтому
- * повторная отправка той же минуты не создаёт дубль, а перезаписывает её.
+ * Transfers measurements from the local DB to Health Connect.
+ * One HeartRateRecord per minute; clientRecordId = start of the minute, so
+ * sending the same minute again does not create a duplicate but overwrites it.
  */
 object HealthSync {
     private const val TAG = "HealthSync"
@@ -29,7 +29,7 @@ object HealthSync {
     suspend fun hasPermission(context: Context): Boolean = isAvailable(context) &&
         PERMISSION in HealthConnectClient.getOrCreate(context).permissionController.getGrantedPermissions()
 
-    /** Отправляет все полные минуты после отметки prefs.hcSyncedUntil; возвращает, сколько минут ушло. */
+    /** Sends all complete minutes after prefs.hcSyncedUntil; returns how many minutes were sent. */
     suspend fun sync(context: Context): Int {
         val prefs = Prefs(context)
         if (!prefs.hcEnabled || !hasPermission(context)) return 0
@@ -43,11 +43,11 @@ object HealthSync {
         while (true) {
             val raw = dao.range(prefs.hcSyncedUntil, before, CHUNK)
             val full = raw.size == CHUNK
-            // Минута на границе пакета может быть неполной; отправим её целиком в следующем пакете.
+            // The minute at the batch boundary may be incomplete; it goes whole in the next batch.
             val lastMinute = raw.lastOrNull()?.ts?.div(MINUTE)
             if (raw.isEmpty()) break
             val rows = raw.filter { it.bpm in 1..300 && !(full && it.ts / MINUTE == lastMinute) }
-            // Отметка двигается по сырым строкам, иначе пакет из одних отброшенных строк застопорит синхронизацию.
+            // The mark advances over raw rows, otherwise a batch of only discarded rows would stall the sync.
             val watermark = if (full) lastMinute!! * MINUTE - 1 else raw.last().ts
             val records = rows.groupBy { it.ts / MINUTE }.map { (minute, list) ->
                 val start = Instant.ofEpochMilli(list.first().ts)

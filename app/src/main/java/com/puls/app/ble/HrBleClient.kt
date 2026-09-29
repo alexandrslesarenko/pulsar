@@ -16,45 +16,45 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 
-/** NO_SIGNAL - связь с датчиком жива, но измерений нет: датчик снят или нет контакта. */
+/** NO_SIGNAL - the link to the sensor is alive, but there are no measurements: sensor taken off or no skin contact. */
 enum class ConnState { IDLE, CONNECTING, CONNECTED, NO_SIGNAL, RECONNECTING }
 
 interface HrListener {
     fun onState(state: ConnState, deviceName: String?)
     fun onMeasurement(m: HrMeasurement)
     fun onBattery(percent: Int)
-    /** Сбой связи с кодом стека Bluetooth: по нему видно, кто и почему рвёт связь. */
+    /** Link failure with the Bluetooth stack status code: it shows who drops the link and why. */
     fun onLinkFailure(what: String, status: Int) {}
 }
 
 /**
- * Держит соединение с одним датчиком. Все операции с GATT выполняются на главном потоке,
- * колбэки стека Bluetooth перекладываются туда же.
+ * Holds the connection to a single sensor. All GATT operations run on the main thread,
+ * Bluetooth stack callbacks are posted there as well.
  *
- * Переподключение: в течение окна активного поиска (searchMs) - прямые попытки подряд,
- * затем autoConnect=true - контроллер сам ждёт появления датчика и не тратит заряд.
+ * Reconnect: within the active search window (searchMs) - direct attempts back to back,
+ * then autoConnect=true - the controller waits for the sensor itself and does not drain the battery.
  *
- * При выключенном экране процессор засыпает, и таймеры Handler стоят вместе с ним:
- * без удержания пробуждения отложенная попытка выполнится только при включении экрана.
- * Поэтому на время активного поиска и на время установки соединения держим
- * partial wakelock. Ожидание autoConnect процессора не требует.
+ * With the screen off the CPU sleeps, and Handler timers stop with it:
+ * without a wakelock a delayed attempt would run only when the screen turns on.
+ * So during active search and while a connection is being set up we hold
+ * a partial wakelock. Waiting in autoConnect does not need the CPU.
  */
 @SuppressLint("MissingPermission")
 class HrBleClient(
     private val context: Context,
     private val listener: HrListener,
-    /** Сколько после потери связи искать датчик активно, мс. */
+    /** How long to search for the sensor actively after the link is lost, ms. */
     private val searchMs: () -> Long,
 ) {
     private val main = Handler(Looper.getMainLooper())
     private val adapter = context.getSystemService(BluetoothManager::class.java).adapter
     private val wakeLock = context.getSystemService(PowerManager::class.java)
         .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "puls:ble").apply { setReferenceCounted(false) }
-    /** elapsedRealtime начала поиска; 0 - связь есть. */
+    /** elapsedRealtime when the search started; 0 - connected. */
     private var searchSince = 0L
 
     private var gatt: BluetoothGatt? = null
-    /** Адрес датчика, с которым держим (или ищем) связь; null - остановлен. */
+    /** Address of the sensor we keep (or look for) a link with; null - stopped. */
     var address: String? = null
         private set
     private var deviceName: String? = null
@@ -67,7 +67,7 @@ class HrBleClient(
     private var batterySubscribed = false
 
     fun start(address: String) {
-        // Другой датчик - имя старого не переносим (stop() иначе сообщит его заново).
+        // Another sensor - do not carry over the old name (otherwise stop() would report it again).
         if (address != this.address) deviceName = null
         stop()
         this.address = address
@@ -123,7 +123,7 @@ class HrBleClient(
 
     private val discover = Runnable { gatt?.discoverServices() }
 
-    /** Samsung иногда "забывает" отложенный autoConnect; периодически переоформляем его. */
+    /** Samsung sometimes "forgets" a pending autoConnect; we re-issue it periodically. */
     private val renewAutoConnect = Runnable { connect(autoConnect = true, state = ConnState.RECONNECTING) }
 
     private val directReconnect = Runnable { connect(autoConnect = false, state = ConnState.RECONNECTING) }
@@ -134,7 +134,7 @@ class HrBleClient(
         beginSearch()
         attempt++
         if (searchLeftMs() > 0) {
-            // Прямая попытка сама ждёт датчик около 30 с, поэтому пауза между ними короткая.
+            // A direct attempt waits for the sensor about 30 s by itself, so the pause between attempts is short.
             main.postDelayed(directReconnect, BACKOFF_MS[minOf(attempt, BACKOFF_MS.size) - 1])
         } else {
             Log.i(TAG, "active search over, waiting with autoConnect")
@@ -144,8 +144,8 @@ class HrBleClient(
     }
 
     /**
-     * Нет данных дольше DATA_TIMEOUT_MS: спрашиваем RSSI. Ответил - связь жива, датчик просто
-     * снят, ждём дальше без переподключения. Не ответил за PROBE_TIMEOUT_MS - связь зависла.
+     * No data for longer than DATA_TIMEOUT_MS: ask for RSSI. If it answers, the link is alive and the
+     * sensor is just taken off, keep waiting without reconnecting. No answer within PROBE_TIMEOUT_MS - the link hung.
      */
     private val watchdog = object : Runnable {
         override fun run() {
@@ -212,15 +212,15 @@ class HrBleClient(
         g.getService(Gatt.BATTERY_SERVICE)?.getCharacteristic(Gatt.BATTERY_LEVEL)
 
     /**
-     * Заряд читаем при подключении, раз в BATTERY_PERIOD_MS и когда датчик снова надели:
-     * на зарядке связь часто не рвётся, и без повторного чтения остаётся старое значение.
+     * Battery is read on connect, every BATTERY_PERIOD_MS and when the sensor is put on again:
+     * while charging the link often stays up, and without a re-read the old value would stick.
      */
     private fun readBattery(g: BluetoothGatt) {
         val ch = batteryChar(g) ?: return
         if (g.readCharacteristic(ch)) batteryReadAt = SystemClock.elapsedRealtime()
     }
 
-    /** Подписка на уведомления о заряде, если датчик их умеет. Только после ответа на чтение: GATT не принимает две операции сразу. */
+    /** Subscribe to battery notifications if the sensor supports them. Only after the read reply: GATT does not accept two operations at once. */
     private fun subscribeBattery(g: BluetoothGatt) {
         if (batterySubscribed) return
         val ch = batteryChar(g) ?: return
@@ -254,14 +254,14 @@ class HrBleClient(
 
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
-            // Колбэк будит процессор, но ненадолго: до включения уведомлений держим его сами.
+            // The callback wakes the CPU, but only briefly: we hold it ourselves until notifications are enabled.
             if (newState == BluetoothProfile.STATE_CONNECTED) wakeLock.acquire(SETUP_WAKE_MS)
             main.post {
                 if (g != gatt) return@post
                 Log.i(TAG, "state=$newState status=$status")
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     cancelTimers()
-                    // Сразу после подключения стек иногда отдаёт пустой список сервисов.
+                    // Right after connecting the stack sometimes returns an empty service list.
                     main.postDelayed(discover, DISCOVER_DELAY_MS)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     listener.onLinkFailure("disconnect", status)
@@ -287,7 +287,7 @@ class HrBleClient(
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
             main.post {
                 if (g != gatt) return@post
-                // Подписка на заряд необязательна: её отказ связь не рвёт.
+                // Battery subscription is optional: its failure does not drop the link.
                 if (d.characteristic.uuid == Gatt.BATTERY_LEVEL) return@post
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     listener.onLinkFailure("subscribe", status)
@@ -297,7 +297,7 @@ class HrBleClient(
                 attempt = 0
                 searchSince = 0
                 releaseWake()
-                // HRS шлёт раз в секунду: короткий интервал соединения тут не нужен.
+                // HRS sends once a second: a short connection interval is not needed here.
                 g.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER)
                 noSignal = false
                 probeSentAt = 0

@@ -42,7 +42,7 @@ fun statusText(ctx: Context, s: LiveState): String = ctx.getString(
     }
 )
 
-/** "имя датчика - батарея N%" для подписей. */
+/** "sensor name - battery N%" for labels. */
 fun deviceLine(ctx: Context, name: String?, battery: Int?): String =
     listOfNotNull(name, battery?.let { ctx.getString(R.string.battery, it) }).joinToString(" - ")
 
@@ -60,10 +60,10 @@ fun AppTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> U
 }
 
 /**
- * Строка кнопок, которая старается уместиться в одну строку: сначала подписи обычного
- * размера, затем помельче, затем ещё мельче. Если не помещается и так (очень крупный шрифт в системе),
- * кнопки переносятся на следующую строку, а не сжимаются до нечитаемых.
- * content получает стиль подписей, который надо применить к Text внутри кнопок.
+ * A row of buttons that tries to fit in one line: first labels of normal size,
+ * then smaller, then smaller still. If it does not fit even then (a very large system font),
+ * buttons wrap to the next line instead of shrinking to unreadable.
+ * content receives the label style to apply to Text inside the buttons.
  */
 @Composable
 fun FitRow(spacing: Dp = 8.dp, content: @Composable (TextStyle) -> Unit) {
@@ -99,8 +99,8 @@ fun FitRow(spacing: Dp = 8.dp, content: @Composable (TextStyle) -> Unit) {
 }
 
 /**
- * Текст в одну строку, который при нехватке места уменьшается (не меньше 10 sp), а не
- * переносится. Стиль и цвет берутся из окружения, как у обычного Text.
+ * Single-line text that shrinks when space is short (not below 10 sp) instead of
+ * wrapping. Style and color come from the surroundings, like a regular Text.
  */
 @Composable
 fun OneLineText(text: String, modifier: Modifier = Modifier) {
@@ -116,15 +116,15 @@ fun OneLineText(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Заголовок плитки: в одну строку с уменьшением, пока шрифт не мельче 12 sp, иначе - в две
- * строки обычным размером. "Экспорт и импорт" и японские названия в строку не влезают и
- * при 10 sp, а обрезанный заголовок хуже переноса.
+ * Tile title: one line with shrinking while the font is not smaller than 12 sp, otherwise two
+ * lines at normal size. "Export and import" and Japanese titles do not fit in one line even
+ * at 10 sp, and a truncated title is worse than wrapping.
  */
 @Composable
 fun TileTitle(text: String, modifier: Modifier = Modifier) {
     val style = LocalTextStyle.current
     val measurer = rememberTextMeasurer()
-    // Layout, а не BoxWithConstraints: плитки меряются через IntrinsicSize, а SubcomposeLayout этого не умеет.
+    // Layout, not BoxWithConstraints: tiles are measured via IntrinsicSize, and SubcomposeLayout cannot do that.
     Layout(
         content = {
             OneLineText(text)
@@ -139,6 +139,6 @@ fun TileTitle(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** День и месяц в порядке, привычном для языка: 24.09 по-русски, 09/24 по-английски. */
+/** Day and month in the order usual for the language: 24.09 in Russian, 09/24 in English. */
 fun dayMonthPattern(): String =
     android.text.format.DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "ddMM")

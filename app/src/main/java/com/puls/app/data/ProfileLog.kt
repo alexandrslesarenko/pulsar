@@ -4,10 +4,10 @@ import android.content.Context
 import com.puls.app.service.Prefs
 
 /**
- * Журнал профилей для раскраски истории: какой профиль и коридор действовали в каждый момент.
- * Ползунок коридора меняет значения много раз в секунду, поэтому правки того же профиля
- * в пределах COALESCE_MS от последней записи переписывают её, а не плодят новые.
- * Смена профиля пишется всегда отдельной записью.
+ * Profile log for coloring the history: which profile and range were in effect at each moment.
+ * The range slider changes values many times a second, so edits of the same profile
+ * within COALESCE_MS of the last record overwrite it instead of piling up new ones.
+ * A profile change is always written as a separate record.
  */
 object ProfileLog {
     private const val COALESCE_MS = 60_000L

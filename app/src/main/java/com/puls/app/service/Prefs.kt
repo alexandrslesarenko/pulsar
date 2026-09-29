@@ -4,7 +4,7 @@ import android.content.Context
 
 class Prefs(context: Context) {
     companion object {
-        /** Норма пульса в покое для взрослых (American Heart Association). */
+        /** Normal resting heart rate for adults (American Heart Association). */
         const val REST_LOW = 60
         const val REST_HIGH = 100
         const val SLEEP_LOW = 40
@@ -24,27 +24,27 @@ class Prefs(context: Context) {
         get() = sp.getString("device_name", null)
         set(v) = sp.edit().putString("device_name", v).apply()
 
-    /** Сбор включён пользователем; по нему сервис поднимается после перезагрузки. */
+    /** Collection turned on by the user; the service is restarted after a reboot based on it. */
     var collecting: Boolean
         get() = sp.getBoolean("collecting", false)
         set(v) = sp.edit().putBoolean("collecting", v).apply()
 
-    /** Датчик отдан другому телефону: никакого автостарта до явного "Старт". */
+    /** The sensor was handed to another phone: no autostart until an explicit "Start". */
     var released: Boolean
         get() = sp.getBoolean("released", false)
         set(v) = sp.edit().putBoolean("released", v).apply()
 
-    /** Сколько минут после потери связи искать датчик активно (не давая телефону уснуть). */
+    /** How many minutes to search for the sensor actively after the link is lost (keeping the phone awake). */
     var sensorSearchMin: Int
         get() = sp.getInt("sensor_search_min", 5)
         set(v) = sp.edit().putInt("sensor_search_min", v).apply()
 
-    /** Пульс в уведомлении и Now Bar; выключено - свёрнутое уведомление без пульса. */
+    /** Heart rate in the notification and Now Bar; off - a collapsed notification without heart rate. */
     var showInNotification: Boolean
         get() = sp.getBoolean("show_in_notification", true)
         set(v) = sp.edit().putBoolean("show_in_notification", v).apply()
 
-    /** Дата рождения; 0 - не указано. Месяц и день необязательны. */
+    /** Date of birth; 0 - not set. Month and day are optional. */
     var birthYear: Int
         get() = sp.getInt("birth_year", 0)
         set(v) = sp.edit().putInt("birth_year", v).apply()
@@ -55,29 +55,29 @@ class Prefs(context: Context) {
         get() = sp.getInt("birth_day", 0)
         set(v) = sp.edit().putInt("birth_day", v).apply()
 
-    /** Возраст по дате рождения или null, если она не указана. */
+    /** Age by date of birth, or null if it is not set. */
     val age: Int?
         get() = birthYear.takeIf { it > 0 }?.let { HrZones.age(it, birthMonth, birthDay) }
 
-    /** Сигнал о выходе из коридора - свой у каждого профиля. */
+    /** Range alarm - separate for each profile. */
     fun alarmEnabled(p: Profile): Boolean = sp.getBoolean("${p.key}_alarm", true)
 
     fun setAlarmEnabled(p: Profile, v: Boolean) = sp.edit().putBoolean("${p.key}_alarm", v).apply()
 
-    /** Сигнал активного профиля. */
+    /** Alarm of the active profile. */
     val alarmEnabled: Boolean get() = alarmEnabled(profile)
 
-    /** Активный профиль: от него зависят коридор и вибрация. */
+    /** Active profile: the range and vibration depend on it. */
     var profile: Profile
         get() = Profile.byKey(sp.getString("profile", null)) ?: Profile.REST
         set(v) = sp.edit().putString("profile", v.key).apply()
 
-    /** Профиль выбирается сам по пульсу и шагам; ручной выбор профиля его выключает. */
+    /** The profile is chosen automatically by heart rate and steps; a manual profile choice turns it off. */
     var autoProfile: Boolean
         get() = sp.getBoolean("auto_profile", false)
         set(v) = sp.edit().putBoolean("auto_profile", v).apply()
 
-    /** Коридор профиля. У прогулки в режиме "авто" он считается от возраста. */
+    /** Profile range. For walk in "auto" mode it is computed from age. */
     fun range(p: Profile): IntRange {
         val a = age
         if (p == Profile.WALK && walkAuto && a != null) return HrZones.walkZone(a)
@@ -89,13 +89,13 @@ class Prefs(context: Context) {
         sp.edit().putInt("${p.key}_low", low).putInt("${p.key}_high", high).apply()
     }
 
-    /** Коридор по умолчанию: свои границы забываем, у прогулки снова расчёт по возрасту. */
+    /** Default range: custom bounds are forgotten, walk is computed from age again. */
     fun resetRange(p: Profile) {
         sp.edit().remove("${p.key}_low").remove("${p.key}_high").apply()
         if (p == Profile.WALK) walkAuto = true
     }
 
-    /** Коридор профиля совпадает с тем, что даст resetRange. */
+    /** The profile range matches what resetRange would give. */
     fun isDefaultRange(p: Profile): Boolean {
         val a = age
         val def = if (p == Profile.WALK && a != null) HrZones.walkZone(a) else p.defaultRange(a)
@@ -106,21 +106,21 @@ class Prefs(context: Context) {
 
     fun setVibrate(p: Profile, v: Boolean) = sp.edit().putBoolean("${p.key}_vibrate", v).apply()
 
-    /** Прогулка: коридор 60-70% от максимального пульса по возрасту. */
+    /** Walk: range of 60-70% of max heart rate by age. */
     var walkAuto: Boolean
         get() = sp.getBoolean("walk_auto", true)
         set(v) = sp.edit().putBoolean("walk_auto", v).apply()
 
-    /** Коридор активного профиля; по нему работают сигналы, уведомление и виджет. */
+    /** Range of the active profile; alarms, the notification and the widget work by it. */
     val alarmLow: Int get() = range(profile).first
     val alarmHigh: Int get() = range(profile).last
 
-    /** Ночью (в заданные часы или при режиме "Не беспокоить") не вибрировать. */
+    /** At night (during the set hours or in "Do Not Disturb" mode) do not vibrate. */
     var nightQuiet: Boolean
         get() = sp.getBoolean("night_quiet", true)
         set(v) = sp.edit().putBoolean("night_quiet", v).apply()
 
-    /** Начало и конец ночи, минуты от полуночи. */
+    /** Night start and end, minutes since midnight. */
     var nightFrom: Int
         get() = sp.getInt("night_from", 23 * 60)
         set(v) = sp.edit().putInt("night_from", v).apply()
@@ -129,8 +129,8 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putInt("night_to", v).apply()
 
     /**
-     * Нижняя граница сигнала во сне (режим "Покой", ночью и утром до первых шагов).
-     * Во сне пульс ниже дневного покоя - это норма; редкий пульс ниже 40 - повод проснуться.
+     * Lower alarm bound in sleep ("Rest" mode, at night and in the morning until the first steps).
+     * In sleep heart rate below daytime rest is normal; a rare heart rate below 40 is a reason to wake up.
      */
     var sleepLow: Int
         get() = sp.getInt("sleep_low", SLEEP_LOW)
@@ -141,7 +141,7 @@ class Prefs(context: Context) {
         migrateAlarmSwitch()
     }
 
-    /** Раньше сигнал включался один на всё приложение: переносим его значение во все профили. */
+    /** The alarm used to be one for the whole app: its value is copied to all profiles. */
     private fun migrateAlarmSwitch() {
         if (!sp.contains("alarm_enabled")) return
         val v = sp.getBoolean("alarm_enabled", true)
@@ -151,8 +151,8 @@ class Prefs(context: Context) {
     }
 
     /**
-     * До профилей был один коридор alarm_low/alarm_high. Совпадал с прогулкой по возрасту -
-     * включаем прогулку, иначе переносим его в покой.
+     * Before profiles there was a single range alarm_low/alarm_high. If it matched the age-based walk -
+     * walk is activated, otherwise it is moved to rest.
      */
     private fun migrateCorridor() {
         if (sp.contains("profile") || !sp.contains("alarm_low")) return
@@ -168,37 +168,37 @@ class Prefs(context: Context) {
         sp.edit().remove("alarm_low").remove("alarm_high").apply()
     }
 
-    /** Голос в наушниках; без наушников молчит в любом случае. */
+    /** Voice in headphones; without headphones it is silent in any case. */
     var voiceEnabled: Boolean
         get() = sp.getBoolean("voice_enabled", true)
         set(v) = sp.edit().putBoolean("voice_enabled", v).apply()
 
-    /** Как часто проговаривать текущий пульс, минут; 0 - только при смене зоны. */
+    /** How often to speak the current heart rate, minutes; 0 - only on a zone change. */
     var voiceIntervalMin: Int
         get() = sp.getInt("voice_interval_min", 1)
         set(v) = sp.edit().putInt("voice_interval_min", v).apply()
 
-    /** Встряхнуть телефон - голос скажет текущий пульс (только в наушниках). */
+    /** Shake the phone - the voice tells the current heart rate (headphones only). */
     var shakeEnabled: Boolean
         get() = sp.getBoolean("shake_enabled", true)
         set(v) = sp.edit().putBoolean("shake_enabled", v).apply()
 
-    /** Тема оформления: "system" - как в системе, "light", "dark". */
+    /** Theme: "system" - follow the system, "light", "dark". */
     var theme: String
         get() = sp.getString("theme", THEME_SYSTEM) ?: THEME_SYSTEM
         set(v) = sp.edit().putString("theme", v).apply()
 
-    /** Скорость по шагомеру. */
+    /** Speed from the pedometer. */
     var stepsEnabled: Boolean
         get() = sp.getBoolean("steps_enabled", true)
         set(v) = sp.edit().putBoolean("steps_enabled", v).apply()
 
-    /** Рост, см: от него длина шага; 0 - не указан, скорости по шагам нет. */
+    /** Height, cm: stride length depends on it; 0 - not set, no speed from steps. */
     var heightCm: Int
         get() = sp.getInt("height_cm", 0)
         set(v) = sp.edit().putInt("height_cm", v).apply()
 
-    /** В профиле "Тренировка" мерить скорость по GPS. */
+    /** In the "Training" profile measure speed by GPS. */
     var gpsInTraining: Boolean
         get() = sp.getBoolean("gps_training", false)
         set(v) = sp.edit().putBoolean("gps_training", v).apply()
@@ -207,7 +207,7 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("hc_enabled", false)
         set(v) = sp.edit().putBoolean("hc_enabled", v).apply()
 
-    /** ts последнего измерения, отправленного в Health Connect. */
+    /** ts of the last measurement sent to Health Connect. */
     var hcSyncedUntil: Long
         get() = sp.getLong("hc_synced_until", 0)
         set(v) = sp.edit().putLong("hc_synced_until", v).apply()

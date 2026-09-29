@@ -4,9 +4,9 @@ import androidx.annotation.StringRes
 import com.puls.app.R
 
 /**
- * Профиль нагрузки: свой коридор пульса и своя настройка вибрации.
- * key хранится в настройках и в журнале профилей в БД и уходит в Calorie через
- * ActivityProvider ("walk", "training") - не менять.
+ * Load profile: its own heart rate range and its own vibration setting.
+ * key is stored in settings and in the profile log in the DB, and goes to Calorie through
+ * ActivityProvider ("walk", "training") - do not change.
  */
 enum class Profile(val key: String, @StringRes val label: Int, val defaultVibrate: Boolean) {
     REST("rest", R.string.profile_rest, false),

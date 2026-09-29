@@ -21,7 +21,7 @@ class ChartScaleTest {
 
     @Test
     fun midnightInLocalZone() {
-        // 2026-09-23 00:00 в Алматы (UTC+5) - это 2026-09-22 19:00 UTC.
+        // 2026-09-23 00:00 in Almaty (UTC+5) is 2026-09-22 19:00 UTC.
         val midnight = 1_790_103_600_000L
         assertTrue(isMidnight(midnight, almaty))
         assertFalse(isMidnight(midnight + hour, almaty))
@@ -48,7 +48,7 @@ class ChartScaleTest {
         val zone = ZoneId.of("Asia/Almaty")
         val midnight = 1_790_103_600_000L
         assertEquals(listOf(midnight), midnights(midnight - hour, midnight + hour, zone))
-        // Сама граница from не считается: черта в начале графика не нужна.
+        // The from bound itself does not count: a line at the start of the chart is not needed.
         assertEquals(emptyList<Long>(), midnights(midnight, midnight + hour, zone))
         assertEquals(emptyList<Long>(), midnights(midnight + hour, midnight + 5 * hour, zone))
         assertEquals(3, midnights(midnight - hour, midnight + 2 * DAY_MS + hour, zone).size)
@@ -56,7 +56,7 @@ class ChartScaleTest {
 
     @Test
     fun midnightsFollowDaylightSaving() {
-        // 2026-03-29 в Берлине переводят часы: сутки 28-29 марта длиной 23 ч.
+        // On 2026-03-29 Berlin changes clocks: the day of March 28-29 is 23 h long.
         val zone = ZoneId.of("Europe/Berlin")
         val from = java.time.LocalDateTime.of(2026, 3, 28, 12, 0).atZone(zone).toInstant().toEpochMilli()
         val m = midnights(from, from + 2 * DAY_MS, zone)

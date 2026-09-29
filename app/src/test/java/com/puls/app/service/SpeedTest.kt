@@ -8,13 +8,13 @@ import org.junit.Test
 class SpeedTest {
     @Test
     fun walkingPace() {
-        // 110 шагов в минуту, рост 175: шаг 0.726 м -> около 4.8 км/ч.
+        // 110 steps per minute, height 175: stride 0.726 m -> about 4.8 km/h.
         assertEquals(4.79, Speed.fromSteps(110, 60_000, 175), 0.05)
     }
 
     @Test
     fun runningStrideIsLonger() {
-        // 170 шагов в минуту: шаг 0.65 роста = 1.1375 м -> около 11.6 км/ч.
+        // 170 steps per minute: stride 0.65 of height = 1.1375 m -> about 11.6 km/h.
         assertEquals(11.6, Speed.fromSteps(170, 60_000, 175), 0.05)
     }
 
@@ -38,7 +38,7 @@ class SpeedTest {
     fun noHeightMeansNoStepSpeed() {
         val rows = listOf(MotionSample(0, 60_000, 110, null))
         assertNull(Speed.of(rows, 0))
-        // GPS от роста не зависит.
+        // GPS does not depend on height.
         assertEquals(18.0, Speed.of(listOf(MotionSample(0, 60_000, 110, 5f)), 0)!!, 0.01)
     }
 }

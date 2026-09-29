@@ -11,11 +11,11 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
- * Журнал для разбора полевых испытаний (подбор порогов автовыбора и сигналов).
- * Файл на день в no_backup/telemetry (в облачную копию не попадает), хранится KEEP_DAYS
- * дней, старые удаляются. Снять: adb shell run-as com.puls.app cat no_backup/telemetry/<дата>.log
+ * Log for analyzing field tests (tuning auto selection and alarm thresholds).
+ * One file per day in no_backup/telemetry (not included in the cloud backup), kept for KEEP_DAYS
+ * days, older ones are deleted. Pull: adb shell run-as com.puls.app cat no_backup/telemetry/<date>.log
  *
- * Строка: время, тип, поля через запятую. Легенда - первой строкой каждого файла.
+ * Line: time, type, comma-separated fields. The legend is the first line of each file.
  */
 object Telemetry {
     private const val TAG = "Telemetry"

@@ -1,9 +1,9 @@
-# Gradle и сборка
+# Gradle and build output
 .gradle/
 build/
 .kotlin/
 
-# Путь к Android SDK на этой машине
+# Android SDK path on this machine
 local.properties
 
 # IDE
@@ -11,11 +11,11 @@ local.properties
 *.iml
 .vscode/
 
-# Ключи подписи и прочие секреты
+# Signing keys and other secrets
 *.jks
 *.keystore
 keystore.properties
 
-# Системное
+# System files
 .DS_Store
 *.log

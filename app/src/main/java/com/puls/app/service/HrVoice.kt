@@ -19,13 +19,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
-/** Язык голоса: язык приложения, запасной английский или никакого (голосов нет). */
+/** Voice language: the app language, English as a fallback, or none (no voices). */
 enum class VoiceLang { NATIVE, ENGLISH, NONE }
 
 /**
- * Голосовые сообщения о пульсе. Говорит только в наушники: через динамик телефона
- * на ходу это слышат все вокруг, а владелец в кармане - нет.
- * На время фразы приглушает музыку (transient may duck), потом отдаёт фокус.
+ * Voice messages about heart rate. Speaks only into headphones: through the phone speaker
+ * everyone around hears it on the move, while the owner with the phone in a pocket does not.
+ * Ducks the music for the phrase (transient may duck), then releases focus.
  */
 class HrVoice(private val context: Context, private val prefs: Prefs) {
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -41,24 +41,24 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     private var pending: ((Resources) -> String)? = null
     private var lastPeriodicAt = 0L
     private var focusHeld = false
-    /** Номер текущей фразы: колбэки прерванных фраз не должны отдавать фокус новой. */
+    /** Current phrase number: callbacks of interrupted phrases must not release focus of a new one. */
     private var seq = 0
     @Volatile private var currentId = ""
     private var createdAt = 0L
-    /** Язык, выставленный движку; язык приложения могут сменить на ходу. */
+    /** Language set on the engine; the app language can be changed on the fly. */
     private var voiceTag = ""
     private val mutableLang = MutableStateFlow<VoiceLang?>(null)
-    /** На каком языке говорит голос; null - движок ещё не готов. */
+    /** Which language the voice speaks; null - the engine is not ready yet. */
     val lang: StateFlow<VoiceLang?> = mutableLang
-    /** Английские фразы на случай, если голоса для языка приложения нет. */
+    /** English phrases in case there is no voice for the app language. */
     private val english: Resources by lazy {
         context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(Locale.US) }).resources
     }
     private var tts: TextToSpeech = createTts()
 
     /**
-     * Страховка от утечки фокуса: если движок не прислал ни onDone, ни onError, ни onStop,
-     * фокус всё равно отдаём, иначе аудиокнига или музыка остаются на паузе.
+     * Guard against a focus leak: if the engine sent neither onDone, nor onError, nor onStop,
+     * focus is released anyway, otherwise the audiobook or music stays paused.
      */
     private val focusTimeout = Runnable {
         Log.w(TAG, "no callback from TTS, abandoning audio focus")
@@ -92,7 +92,7 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
                 Log.w(TAG, "TTS error $errorCode")
                 releaseOnMain(id)
             }
-            // Фраза прервана следующей (QUEUE_FLUSH) или остановкой; onDone тогда не приходит.
+            // The phrase was interrupted by the next one (QUEUE_FLUSH) or by a stop; onDone does not come then.
             override fun onStop(id: String?, interrupted: Boolean) = releaseOnMain(id)
         })
         ready = true
@@ -101,10 +101,10 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     }
 
     /**
-     * Голос на языке фраз: язык берётся из тех же ресурсов, что и сами фразы. Голоса для
-     * него в телефоне нет - говорим по-английски (английский голос есть почти в любом
-     * движке): сигнал на чужом языке лучше тишины, а чужой текст родным голосом -
-     * бессмыслица. Нет и английского - молчим.
+     * Voice in the language of the phrases: the language is taken from the same resources as the phrases.
+     * If the phone has no voice for it - speak English (almost every engine has an English
+     * voice): an alarm in a foreign language is better than silence, while foreign text in a native voice
+     * is nonsense. No English either - stay silent.
      */
     private fun applyLanguage(engine: TextToSpeech) {
         voiceTag = context.getString(R.string.tts_locale)
@@ -120,13 +120,13 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
 
     private fun isAvailable(r: Int) = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
 
-    /** Ресурсы, на языке которых сейчас говорит голос. */
+    /** Resources in whose language the voice currently speaks. */
     private fun voiceRes(): Resources = if (mutableLang.value == VoiceLang.ENGLISH) english else context.resources
 
-    /** Движок синтеза речи по умолчанию (пакет): установку голосов открываем у него. */
+    /** Default speech synthesis engine (package): voice installation is opened in it. */
     fun enginePackage(): String? = runCatching { tts.defaultEngine }.getOrNull()
 
-    /** Перепроверить голоса: пользователь мог вернуться из установки голоса. */
+    /** Re-check the voices: the user may have come back from installing a voice. */
     fun recheckLanguage() {
         main.post { if (ready) applyLanguage(tts) }
     }
@@ -137,8 +137,8 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         lastPeriodicAt = System.currentTimeMillis()
         say { r ->
             when (e) {
-                // Скорость при выходе за коридор подсказывает, что делать: сбавить шаг или прибавить.
-                // При возврате в коридор действовать не нужно, там фраза короче.
+                // Speed when leaving the range hints what to do: slow down or speed up.
+                // When back in range no action is needed, so the phrase is shorter.
                 AlarmEvent.HIGH -> withSpeed(r, r.getString(R.string.voice_high, bpm))
                 AlarmEvent.LOW -> withSpeed(r, r.getString(R.string.voice_low, bpm))
                 AlarmEvent.BACK -> r.getString(R.string.voice_back, bpm)
@@ -147,13 +147,13 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         }
     }
 
-    /** Автовыбор сменил профиль. */
+    /** Auto selection switched the profile. */
     fun onProfile(p: Profile) {
         lastPeriodicAt = System.currentTimeMillis()
         say { r -> r.getString(R.string.voice_profile, r.getString(p.label)) }
     }
 
-    /** Вызывается на каждом измерении; сама решает, пора ли проговорить текущий пульс. */
+    /** Called on every measurement; decides by itself whether it is time to speak the current heart rate. */
     fun onBpm(bpm: Int, zone: AlarmZone, now: Long) {
         val interval = prefs.voiceIntervalMin * 60_000L
         if (interval <= 0 || now - lastPeriodicAt < interval) return
@@ -168,8 +168,8 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     }
 
     /**
-     * Добавляет к фразе скорость целым числом: на ходу "пять" понятнее, чем "пять и две
-     * десятых". Стоим (меньше 1 км/ч) или скорость не меряется - фраза без скорости.
+     * Appends the speed to the phrase as a whole number: on the move "five" is clearer than "five point
+     * two". Standing (under 1 km/h) or speed not measured - the phrase goes without speed.
      */
     private fun withSpeed(r: Resources, text: String): String {
         val kmh = LiveHr.state.value.speedKmh?.roundToInt() ?: return text
@@ -177,13 +177,13 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         return text + ". " + r.getQuantityString(R.plurals.voice_speed, kmh, kmh)
     }
 
-    /** По встряхиванию: сказать сейчас, не дожидаясь интервала. */
+    /** On a shake: speak now, without waiting for the interval. */
     fun sayNow(bpm: Int?, zone: AlarmZone) {
         lastPeriodicAt = System.currentTimeMillis()
         say { r -> withSpeed(r, if (bpm == null) r.getString(R.string.voice_no_data) else bpmPhrase(r, bpm, zone)) }
     }
 
-    /** Проверка из настроек: говорит и без наушников, чтобы можно было услышать голос. */
+    /** Test from settings: speaks even without headphones so the voice can be heard. */
     fun test(bpm: Int?) = speak { r ->
         if (bpm != null) r.getString(R.string.voice_bpm, bpm) else r.getString(R.string.voice_test)
     }
@@ -199,13 +199,13 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     }
 
     /**
-     * Фраза собирается здесь, после проверки языка: так текст всегда на том языке,
-     * которым его произнесут.
+     * The phrase is built here, after the language check: this way the text is always in the language
+     * it will be spoken in.
      */
     private fun speak(phrase: (Resources) -> String) = main.post {
         if (!ready) {
             pending = phrase
-            // Инициализация не удалась или зависла: пробуем движок заново, но не чаще RETRY_MS.
+            // Initialization failed or hung: retry the engine, but not more often than RETRY_MS.
             if (SystemClock.elapsedRealtime() - createdAt > RETRY_MS) {
                 Log.w(TAG, "TTS not ready, recreating")
                 runCatching { tts.shutdown() }
@@ -213,7 +213,7 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
             }
             return@post
         }
-        // Язык приложения сменили или голос могли доустановить - проверяем заново.
+        // The app language was changed or a voice may have been installed - check again.
         if (context.getString(R.string.tts_locale) != voiceTag || mutableLang.value != VoiceLang.NATIVE) applyLanguage(tts)
         if (mutableLang.value == VoiceLang.NONE) return@post
         val text = phrase(voiceRes())
@@ -224,8 +224,8 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         currentId = "hr-${++seq}"
         val r = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, currentId)
         if (r != TextToSpeech.SUCCESS) {
-            // Движок TTS отвязан (его процесс выгружен системой): сам он не вернётся.
-            // Отдаём фокус, пересоздаём движок, фраза уйдёт после инициализации.
+            // The TTS engine is unbound (its process was killed by the system): it will not come back by itself.
+            // Release focus, recreate the engine, the phrase goes out after initialization.
             Log.w(TAG, "speak failed ($r, focus=$granted), recreating TTS")
             release()
             runCatching { tts.shutdown() }

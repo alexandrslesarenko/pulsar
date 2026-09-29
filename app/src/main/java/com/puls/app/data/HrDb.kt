@@ -14,20 +14,20 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
-/** Одно измерение пульса. ts - время в мс от эпохи (System.currentTimeMillis). */
+/** One heart rate measurement. ts - time in ms since the epoch (System.currentTimeMillis). */
 @Entity(tableName = "hr")
 data class HrSample(@PrimaryKey val ts: Long, val bpm: Int)
 
 /**
- * Запись журнала профилей: с момента ts действовал профиль profile с коридором [lo, hi];
- * alarm = false - сигналы были выключены. Действует до следующей записи.
+ * Profile log record: starting at ts, profile was in effect with the range [lo, hi];
+ * alarm = false - alarms were off. In effect until the next record.
  */
 @Entity(tableName = "profile_log")
 data class ProfileMark(@PrimaryKey val ts: Long, val profile: String, val lo: Int, val hi: Int, val alarm: Boolean)
 
 /**
- * Движение за интервал [ts, ts + durMs): шаги по шагомеру и средняя скорость GPS, м/с
- * (null - GPS не работал). Скорость по шагам считается при показе: зависит от роста.
+ * Motion over the interval [ts, ts + durMs): pedometer steps and average GPS speed, m/s
+ * (null - GPS was off). Speed from steps is computed on display: it depends on height.
  */
 @Entity(tableName = "motion")
 data class MotionSample(@PrimaryKey val ts: Long, val durMs: Long, val steps: Int, val gpsMps: Float?)
@@ -36,7 +36,7 @@ data class Bucket(val t: Long, val lo: Int, val avg: Double, val hi: Int)
 
 data class Stats(val lo: Int?, val avg: Double?, val hi: Int?, val n: Int)
 
-/** Минута пульса для ActivityProvider: начало минуты, средний пульс, число замеров. */
+/** Heart rate minute for ActivityProvider: minute start, average heart rate, sample count. */
 data class MinuteHr(val minute: Long, val bpm: Double, val samples: Int)
 
 @Dao
@@ -53,7 +53,7 @@ interface HrDao {
     @Query("SELECT MIN(bpm) AS lo, AVG(bpm) AS avg, MAX(bpm) AS hi, COUNT(*) AS n FROM hr WHERE ts >= :from AND ts < :to")
     fun stats(from: Long, to: Long): Flow<Stats>
 
-    /** Вставляет только новые строки; для уже существующих ts возвращает -1. */
+    /** Inserts only new rows; returns -1 for ts that already exist. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertNew(samples: List<HrSample>): List<Long>
 
@@ -63,14 +63,14 @@ interface HrDao {
     @Query("SELECT * FROM hr WHERE ts > :after AND ts < :before ORDER BY ts LIMIT :limit")
     suspend fun range(after: Long, before: Long, limit: Int): List<HrSample>
 
-    /** Записи журнала, действовавшие в [from, to): последняя до from и все внутри. */
+    /** Log records in effect in [from, to): the last one before from and all inside. */
     @Query(
         "SELECT * FROM profile_log WHERE ts >= (SELECT COALESCE(MAX(ts), 0) FROM profile_log WHERE ts <= :from) " +
             "AND ts < :to ORDER BY ts"
     )
     fun marks(from: Long, to: Long): Flow<List<ProfileMark>>
 
-    /** То же, что marks, но синхронно: для ActivityProvider, который работает в потоке binder. */
+    /** Same as marks, but synchronous: for ActivityProvider, which runs on a binder thread. */
     @Query(
         "SELECT * FROM profile_log WHERE ts >= (SELECT COALESCE(MAX(ts), 0) FROM profile_log WHERE ts <= :from) " +
             "AND ts < :to ORDER BY ts"
@@ -109,7 +109,7 @@ abstract class HrDb : RoomDatabase() {
                 .build().also { instance = it }
         }
 
-        /** v3: шаги и скорость GPS. */
+        /** v3: steps and GPS speed. */
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -119,7 +119,7 @@ abstract class HrDb : RoomDatabase() {
             }
         }
 
-        /** v2: журнал профилей. Историю пульса не трогаем. */
+        /** v2: profile log. Heart rate history is left untouched. */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

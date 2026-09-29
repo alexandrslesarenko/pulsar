@@ -21,13 +21,13 @@ class HrRecognitionTest {
 
     @Test
     fun appearanceHeartRateBelt() {
-        // flags, затем Appearance 0x0341 (Heart Rate Belt)
+        // flags, then Appearance 0x0341 (Heart Rate Belt)
         assertTrue(HrScanner.isHrAppearance(bytes(0x02, 0x01, 0x06, 0x03, 0x19, 0x41, 0x03)))
     }
 
     @Test
     fun appearanceOther() {
-        // Appearance 0x0941 (Earbud) и обрезанный пакет
+        // Appearance 0x0941 (Earbud) and a truncated packet
         assertFalse(HrScanner.isHrAppearance(bytes(0x03, 0x19, 0x41, 0x09)))
         assertFalse(HrScanner.isHrAppearance(bytes(0x05, 0x19, 0x41)))
         assertFalse(HrScanner.isHrAppearance(null))

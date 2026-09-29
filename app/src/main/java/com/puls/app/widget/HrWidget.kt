@@ -110,7 +110,7 @@ class HrWidget : GlanceAppWidget() {
         }
     }
 
-    /** Вариант 1x1: сердце над числом; без связи вместо числа "--". */
+    /** 1x1 variant: a heart above the number; without a link "--" instead of the number. */
     @Composable
     private fun Tiny(bpm: Int, zone: Int) {
         Column(
@@ -134,7 +134,7 @@ class HrWidget : GlanceAppWidget() {
         }
     }
 
-    /** Вариант 2x1: сердце, число и статус в одну строку; касание открывает приложение. */
+    /** 2x1 variant: heart, number and status in one row; a tap opens the app. */
     @Composable
     private fun Compact(bpm: Int, status: String, zone: Int) {
         Row(

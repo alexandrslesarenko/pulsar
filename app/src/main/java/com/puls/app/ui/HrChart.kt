@@ -55,19 +55,19 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-/** Точка графика: t - начало интервала, lo/hi - разброс внутри него, avg - линия. */
+/** Chart point: t - interval start, lo/hi - spread inside it, avg - the line. */
 data class ChartPoint(val t: Long, val lo: Int, val avg: Double, val hi: Int)
 
 /**
- * Участок времени [from, to) со своим коридором (null - без раскраски по зонам)
- * и цветом фона (null - без фона): так на истории видно, какой профиль тогда действовал.
+ * Time segment [from, to) with its own range (null - no zone coloring)
+ * and background color (null - no background): this way the history shows which profile was in effect then.
  */
 data class ChartSpan(val from: Long, val to: Long, val corridor: IntRange?, val tint: Color? = null)
 
 /**
- * График пульса: линия средних и полупрозрачная полоса min-max.
- * Разрыв в данных больше gapMs рвёт линию, а не соединяет точки через пустоту.
- * Касание показывает значение в точке; после долгого нажатия подсказку можно вести пальцем.
+ * Heart rate chart: a line of averages and a translucent min-max band.
+ * A data gap longer than gapMs breaks the line instead of connecting points across the void.
+ * A tap shows the value at the point; after a long press the tooltip can be dragged with a finger.
  */
 @Composable
 fun HrChart(
@@ -76,13 +76,13 @@ fun HrChart(
     to: Long,
     gapMs: Long,
     modifier: Modifier = Modifier,
-    /** Высота в dp; null - вся высота, которую отвёл родитель. */
+    /** Height in dp; null - all the height the parent gives. */
     height: Int? = 220,
-    /** Участки с коридорами; вне участков линия одного цвета, без границ. */
+    /** Segments with ranges; outside segments the line is one color, without bounds. */
     spans: List<ChartSpan> = emptyList(),
     /**
-     * Масштаб двумя пальцами: zoom > 1 - раздвинули; pan - сдвиг в долях ширины графика;
-     * focus - где между пальцами, доля от левого края. null - жест не ловим.
+     * Two-finger zoom: zoom > 1 - spread apart; pan - shift in fractions of the chart width;
+     * focus - where between the fingers, as a fraction from the left edge. null - the gesture is not handled.
      */
     onTransform: ((zoom: Float, pan: Float, focus: Float) -> Unit)? = null,
 ) {
@@ -101,7 +101,7 @@ fun HrChart(
     }
 
     val visible = spans.filter { it.to > from && it.from < to }
-    // Без данных шкала - по коридорам или обычный пульс в покое.
+    // Without data the scale is by the ranges or the usual resting heart rate.
     val rawLo = minOf(points.minOfOrNull { it.lo } ?: Int.MAX_VALUE, visible.minOfOrNull { it.corridor?.first ?: Int.MAX_VALUE } ?: Int.MAX_VALUE)
         .takeIf { it != Int.MAX_VALUE } ?: EMPTY_LO
     val rawHi = maxOf(points.maxOfOrNull { it.hi } ?: Int.MIN_VALUE, visible.maxOfOrNull { it.corridor?.last ?: Int.MIN_VALUE } ?: Int.MIN_VALUE)
@@ -110,12 +110,12 @@ fun HrChart(
     val yMin = (floor((rawLo - 3) / step.toDouble()) * step).toInt().coerceAtLeast(0)
     val yMax = (ceil((rawHi + 3) / step.toDouble()) * step).toInt()
 
-    // Пустой участок рисуем с осями и жестами: иначе из него нельзя ни уйти сдвигом, ни уменьшить масштаб.
+    // An empty segment is drawn with axes and gestures: otherwise one could neither pan away from it nor zoom out.
     Box(modifier.fillMaxWidth().chartHeight(height), contentAlignment = Alignment.Center) {
         Canvas(
             Modifier.fillMaxSize()
                 .pointerInput(points) {
-                    // Касание только читаем и не поглощаем, иначе свайп по графику не дойдёт до пейджера.
+                    // The touch is only read, not consumed, otherwise a swipe over the chart would not reach the pager.
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         touchX = down.position.x
@@ -129,7 +129,7 @@ fun HrChart(
                 }
                 .pinch { transform }
                 .pointerInput(points) {
-                    // Долгое нажатие, иначе обычный свайп уходит пейджеру вкладок.
+                    // Long press, otherwise a regular swipe goes to the tab pager.
                     detectDragGesturesAfterLongPress(
                         onDragStart = { touchX = it.x },
                         onDragEnd = { touchX = null },
@@ -145,7 +145,7 @@ fun HrChart(
             fun x(t: Long) = left + (t - from).toFloat() / span * (right - left)
             fun y(v: Double) = bottom - ((v - yMin) / (yMax - yMin)).toFloat() * (bottom - top)
 
-            // Сетка и подписи по оси Y
+            // Grid and Y axis labels
             var v = yMin
             while (v <= yMax) {
                 val yy = y(v.toDouble())
@@ -158,7 +158,7 @@ fun HrChart(
             drawTimeAxis(from, to, left, right, bottom, ::x) { measurer.measure(it, axisStyle) }
             drawDayLines(from, to, top, bottom, dayLine, ::x)
 
-            // Непрерывные участки
+            // Continuous segments
             val segments = ArrayList<List<ChartPoint>>()
             var cur = ArrayList<ChartPoint>()
             for (p in points) {
@@ -169,8 +169,8 @@ fun HrChart(
             }
             if (cur.isNotEmpty()) segments += cur
 
-            // Цвет по зонам: выше коридора красный, ниже жёлтый, внутри зелёный.
-            // Жёсткие переходы градиента ровно на высоте границ.
+            // Zone colors: above the range red, below yellow, inside green.
+            // Hard gradient stops exactly at the bound heights.
             fun zones(corridor: IntRange, a: Float): Brush {
                 val fHi = (y(corridor.last.toDouble()) / size.height).coerceIn(0f, 1f)
                 val fLo = (y(corridor.first.toDouble()) / size.height).coerceIn(0f, 1f)
@@ -205,8 +205,8 @@ fun HrChart(
                 }
             }
 
-            // Каждый участок рисуем в своих границах по X со своим коридором; вне участков - без зон.
-            // Линия толщиной в пару dp вылезает за край на полтолщины, это незаметно.
+            // Each segment is drawn within its own X bounds with its own range; outside segments - no zones.
+            // A line a couple of dp thick sticks out past the edge by half its width, which is not noticeable.
             var cursor = left
             val brushes = ArrayList<Pair<ChartSpan, Brush>>()
             for (sp in visible.sortedBy { it.from }) {
@@ -233,7 +233,7 @@ fun HrChart(
             }
             if (cursor < right) clipRect(cursor, 0f, right, size.height) { drawSegments(plainLine, plainBand) }
 
-            // Перекрестие и подсказка
+            // Crosshair and tooltip
             val tx = touchX
             if (tx != null && points.isNotEmpty()) {
                 val p = points.minBy { abs(x(it.t) - tx) }
@@ -266,13 +266,13 @@ private const val EMPTY_LO = 60
 private const val EMPTY_HI = 100
 
 /**
- * Цвет черты новых суток: не совпадает ни с зонами (красный, жёлтый, зелёный), ни с
- * фоном режимов, ни с линиями графиков (primary, secondary), поэтому берём цвет текста.
+ * Color of the new day line: it matches neither the zones (red, yellow, green), nor the
+ * mode backgrounds, nor the chart lines (primary, secondary), so the text color is used.
  */
 @Composable
 private fun dayLineColor() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
 
-/** Полночи местного времени внутри (from, to]. Сутки считаем по календарю: при переводе часов они не 24 ч. */
+/** Local midnights within (from, to]. Days are counted by the calendar: around a clock change they are not 24 h. */
 internal fun midnights(from: Long, to: Long, zone: ZoneId = ZoneId.systemDefault()): List<Long> {
     val out = ArrayList<Long>()
     var d = Instant.ofEpochMilli(from).atZone(zone).toLocalDate().plusDays(1)
@@ -285,9 +285,9 @@ internal fun midnights(from: Long, to: Long, zone: ZoneId = ZoneId.systemDefault
     return out
 }
 
-/** Вертикальная черта на каждой полуночи: на графиках за несколько суток видно, где начался новый день. */
+/** A vertical line at each midnight: on multi-day charts it shows where a new day began. */
 private fun DrawScope.drawDayLines(from: Long, to: Long, top: Float, bottom: Float, color: Color, x: (Long) -> Float) {
-    // На неделе и дальше черт слишком много, и подписи оси там и так даты.
+    // At a week and beyond there are too many lines, and the axis labels there are dates anyway.
     if (to - from > 8 * DAY_MS) return
     for (t in midnights(from, to)) {
         val xx = x(t)
@@ -298,9 +298,9 @@ private fun DrawScope.drawDayLines(from: Long, to: Long, top: Float, bottom: Flo
 private fun Modifier.chartHeight(dp: Int?) = if (dp != null) height(dp.dp) else fillMaxHeight()
 
 /**
- * Масштаб и прокрутка времени: два пальца - масштаб и сдвиг, один палец по горизонтали -
- * сдвиг. Такие жесты поглощаются, поэтому вкладки по графику не листаются. Вертикальное
- * движение одним пальцем не трогаем - это прокрутка страницы; долгое нажатие - подсказка.
+ * Time zoom and scroll: two fingers - zoom and pan, one finger horizontally -
+ * pan. These gestures are consumed, so tabs do not swipe over the chart. Vertical
+ * one-finger movement is left alone - it is page scrolling; a long press - the tooltip.
  */
 private fun Modifier.pinch(transform: () -> ((Float, Float, Float) -> Unit)?) = pointerInput(Unit) {
     awaitEachGesture {
@@ -324,7 +324,7 @@ private fun Modifier.pinch(transform: () -> ((Float, Float, Float) -> Unit)?) = 
                 val d = ch.position - ch.previousPosition
                 if (!panning) {
                     total += d
-                    // Решаем по первому заметному смещению: вбок - наша прокрутка, вверх-вниз - страницы.
+                    // Decide by the first noticeable movement: sideways - our scroll, up-down - the page's.
                     if (total.getDistance() < viewConfiguration.touchSlop) continue
                     if (abs(total.x) <= abs(total.y)) break
                     panning = true
@@ -337,8 +337,8 @@ private fun Modifier.pinch(transform: () -> ((Float, Float, Float) -> Unit)?) = 
 }
 
 /**
- * Подписи по оси X на круглых отметках местного времени: шаг меньше суток - время,
- * а полночь подписываем датой; шаг от суток - даты.
+ * X axis labels at round marks of local time: a step under a day - time,
+ * and midnight is labeled with the date; a step of a day or more - dates.
  */
 private fun DrawScope.drawTimeAxis(
     from: Long, to: Long, left: Float, right: Float, bottom: Float,
@@ -357,8 +357,8 @@ private fun DrawScope.drawTimeAxis(
 }
 
 /**
- * График скорости, км/ч, под графиком пульса: та же шкала времени и те же отступы,
- * чтобы моменты совпадали по вертикали.
+ * Speed chart, km/h, under the heart rate chart: the same time scale and the same paddings,
+ * so moments line up vertically.
  */
 @Composable
 fun SpeedChart(
@@ -443,7 +443,7 @@ private val CHART_RIGHT = 4.dp
 
 internal fun isMidnight(t: Long, tz: TimeZone): Boolean = Math.floorMod(t + tz.getOffset(t), DAY_MS) == 0L
 
-/** Шаг меток и сами метки: не больше 5 на график, на круглых значениях местного времени. */
+/** Mark step and the marks themselves: at most 5 per chart, at round values of local time. */
 internal fun timeTicks(from: Long, to: Long, tz: TimeZone = TimeZone.getDefault()): Pair<Long, List<Long>> {
     val step = TICK_STEPS_MS.firstOrNull { (to - from) / it <= 5 } ?: TICK_STEPS_MS.last()
     val offset = tz.getOffset(from).toLong()

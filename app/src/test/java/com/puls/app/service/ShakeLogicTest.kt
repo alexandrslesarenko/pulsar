@@ -7,7 +7,7 @@ import org.junit.Test
 class ShakeLogicTest {
     private val g = 9.8f
 
-    /** Прогоняет отсчёты 50 Гц; x(t) - ускорение по оси X поверх гравитации по Z. */
+    /** Runs 50 Hz samples; x(t) - acceleration along X on top of gravity along Z. */
     private fun run(logic: ShakeLogic, fromMs: Long, durationMs: Long, x: (Long) -> Float): Int {
         var fired = 0
         var t = fromMs
@@ -24,7 +24,7 @@ class ShakeLogicTest {
     fun alternatingJerksFire() {
         val logic = ShakeLogic()
         still(logic)
-        // Рывки по 20 м/с2, направление меняется каждые 150 мс (около 3 Гц).
+        // Jerks of 20 m/s2, direction changes every 150 ms (about 3 Hz).
         val fired = run(logic, 2_000, 1_000) { t -> if (t % 150 < 20) (if ((t / 150) % 2 == 0L) 20f else -20f) else 0f }
         assertEquals(1, fired)
     }
@@ -33,7 +33,7 @@ class ShakeLogicTest {
     fun oneDirectionImpactsDoNotFire() {
         val logic = ShakeLogic()
         still(logic)
-        // Шаги бега: сильные удары вниз около 3 раз в секунду.
+        // Running steps: strong downward hits about 3 times a second.
         val fired = run(logic, 2_000, 10_000) { t -> if (t % 340 < 20) -20f else 0f }
         assertEquals(0, fired)
     }
@@ -42,7 +42,7 @@ class ShakeLogicTest {
     fun impactWithReboundDoesNotFire() {
         val logic = ShakeLogic()
         still(logic)
-        // Бег с телефоном в кармане: удар вниз и отскок вверх через 100 мс, шаги 2.8 в секунду.
+        // Running with the phone in a pocket: a hit down and a rebound up 100 ms later, 2.8 steps per second.
         val fired = run(logic, 2_000, 10_000) { t ->
             val phase = t % 360
             when {

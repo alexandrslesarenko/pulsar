@@ -78,22 +78,22 @@ fun HistoryScreen() {
     var period by rememberSaveable { mutableStateOf(Period.H1) }
     var exporting by remember { mutableStateOf(false) }
 
-    // Окно сдвигается раз в 30 с; новые записи БД Room присылает сам.
+    // The window moves every 30 s; Room delivers new DB rows by itself.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
             delay(30_000)
             value = System.currentTimeMillis()
         }
     }
-    // Своё окно после масштабирования пальцами; null - последние period, окно едет со временем.
+    // Custom window after pinch zoom; null - the last period, the window moves with time.
     var zoomed by remember { mutableStateOf<LongRange?>(null) }
     val base = (now / period.bucketMs * period.bucketMs + period.bucketMs).let { (it - period.spanMs)..it }
     val view = zoomed ?: base
     val from = view.first
     val to = view.last
     val bucketMs = if (zoomed == null) period.bucketMs else bucketFor(to - from)
-    // Запрос с запасом в интервал по краям, чтобы линия доходила до краёв графика;
-    // границы выровнены по интервалу, чтобы при жесте запрос не менялся на каждом кадре.
+    // The query has one interval of margin on each side so the line reaches the chart edges;
+    // bounds are aligned to the interval so the query does not change on every frame during a gesture.
     val qFrom = Math.floorDiv(from, bucketMs) * bucketMs - bucketMs
     val qTo = Math.floorDiv(to, bucketMs) * bucketMs + 2 * bucketMs
     var buckets by remember { mutableStateOf(emptyList<Bucket>()) }
@@ -109,14 +109,14 @@ fun HistoryScreen() {
         launch { dao.marks(qFrom, qTo).collect { marks = it } }
         dao.motion(qFrom, qTo).collect { motion = it }
     }
-    // Итоги - ровно за видимый участок. Ключи - сами границы, а не выровненные по интервалу:
-    // при крупном интервале сдвиг в его пределах не меняет запрос графика, а итоги меняет.
+    // Totals - exactly for the visible part. The keys are the bounds themselves, not aligned to the interval:
+    // with a large interval a shift within it does not change the chart query, but does change the totals.
     LaunchedEffect(from, to) {
         if (zoomed != null) delay(GESTURE_DEBOUNCE_MS)
         dao.stats(from, to).collect { stats = it }
     }
     val spans = remember(marks, qTo) { spansOf(marks, qTo) }
-    // Движение пишется поминутно, поэтому интервал графика скорости не меньше минуты.
+    // Motion is recorded per minute, so the speed chart interval is at least a minute.
     val speedBucket = maxOf(bucketMs, 60_000L)
     val height = remember { Prefs(ctx).heightCm }
     val speed = remember(motion, speedBucket) {
@@ -124,29 +124,29 @@ fun HistoryScreen() {
             .mapNotNull { (t, rows) -> Speed.of(rows, height)?.let { t to it } }
     }
     val transform: (Float, Float, Float) -> Unit = { zoom, pan, focus ->
-        // За кадр приходит несколько событий: каждое строим от результата предыдущего,
-        // а не от границ, с которыми был нарисован кадр.
+        // Several events come per frame: each is applied to the result of the previous one,
+        // not to the bounds the frame was drawn with.
         val cur = zoomed ?: base
         val span = (cur.last - cur.first).toDouble()
         val newSpan = (span / zoom).coerceIn(MIN_SPAN_MS.toDouble(), MAX_SPAN_MS.toDouble())
         val focusT = cur.first + span * focus
-        // Сдвиг пальцев вправо - к более раннему времени; правее "сейчас" не уходим.
+        // Moving the fingers right goes to earlier time; we do not go past "now".
         val end = (focusT + newSpan * (1 - focus) - pan * newSpan)
             .coerceAtMost((System.currentTimeMillis() + newSpan * 0.05))
         zoomed = (end - newSpan).toLong()..end.toLong()
     }
 
     var showHint by rememberSaveable { mutableStateOf(false) }
-    // Графики занимают всю свободную высоту: при любом размере экрана и шрифта экран заполнен,
-    // а не заканчивается на середине.
+    // Charts take all free height: with any screen and font size the screen is filled
+    // instead of ending halfway.
     Column(
         Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // По верхнему краю: если при очень крупном шрифте кнопки периода перенесутся, значки
-        // остаются в первой строке, а не съезжают между строками.
+        // Aligned to the top: if the period buttons wrap with a very large font, the icons
+        // stay in the first line instead of drifting between lines.
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-            // Значки справа всегда на месте; кнопки периода подстраиваются под оставшуюся ширину.
+            // Icons on the right always stay in place; the period buttons adapt to the remaining width.
             Box(Modifier.weight(1f)) {
                 FitRow(spacing = 4.dp) { style ->
                     Period.entries.forEach { p ->
@@ -168,8 +168,8 @@ fun HistoryScreen() {
                     tint = if (showHint) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            // Экспорт того, что сейчас на графике (период или участок после масштаба),
-            // через системное меню "Поделиться" - поэтому значок "Поделиться" рядом с выбором периода.
+            // Export of what is on the chart now (the period or the zoomed part),
+            // via the system "Share" menu - hence the "Share" icon next to the period choice.
             val exportLabel = when {
                 exporting -> stringResource(R.string.export_preparing)
                 zoomed != null -> stringResource(R.string.export_csv_view)
@@ -199,7 +199,7 @@ fun HistoryScreen() {
         }
         val hasSpeed = speed.any { it.second > 0 }
         Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Со скоростью высота делится 2:1 - пульс главный.
+            // With speed the height is split 2:1 - heart rate comes first.
             HrChart(
                 points = buckets.map { ChartPoint(it.t, it.lo, it.avg, it.hi) },
                 from = from, to = to, gapMs = maxOf(bucketMs * 3, 60_000L),
@@ -223,14 +223,14 @@ fun HistoryScreen() {
         if (zoomed != null) {
             TextButton(onClick = { zoomed = null }) { Text(stringResource(R.string.zoom_reset)) }
         }
-        // Порядок как везде в приложении (Покой, Прогулка, Тренировка), а не по времени появления.
+        // The order is the same as everywhere in the app (Rest, Walk, Training), not by time of appearance.
         ProfileLegend(marks.mapNotNull { Profile.byKey(it.profile) }.distinct().sorted())
         Card(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 StatCell(stringResource(R.string.stat_min), stats.lo?.toString())
                 StatCell(stringResource(R.string.stat_avg), stats.avg?.roundToInt()?.toString())
                 StatCell(stringResource(R.string.stat_max), stats.hi?.toString())
-                // Датчик шлёт измерение раз в секунду, поэтому число строк примерно равно секундам записи.
+                // The sensor sends a measurement once a second, so the row count roughly equals the seconds recorded.
                 StatCell(stringResource(R.string.stat_recorded), if (stats.n > 0) "~" + formatDuration(ctx, stats.n.toLong()) else null)
             }
         }
@@ -245,13 +245,13 @@ private val BUCKET_STEPS_MS = longArrayOf(
     3_600_000, 2 * 3_600_000,
 )
 
-/** Интервал усреднения под видимый участок: около 400 точек на график. */
+/** Averaging interval for the visible part: about 400 points per chart. */
 internal fun bucketFor(spanMs: Long): Long = BUCKET_STEPS_MS.firstOrNull { it >= spanMs / 400 } ?: BUCKET_STEPS_MS.last()
 
 /**
- * Участки графика по журналу профилей: каждая запись действует до следующей.
- * Выход за коридор профиля раскрашиваем и при выключенном сигнале: коридор - это норма
- * для профиля, а сигнал - только способ о ней напомнить.
+ * Chart segments from the profile log: each record is in effect until the next one.
+ * Leaving the profile range is colored even with the alarm off: the range is the norm
+ * for the profile, and the alarm is only a way to remind of it.
  */
 private fun spansOf(marks: List<ProfileMark>, to: Long): List<ChartSpan> = marks.mapIndexedNotNull { i, m ->
     val p = Profile.byKey(m.profile) ?: return@mapIndexedNotNull null

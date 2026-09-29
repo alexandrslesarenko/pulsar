@@ -10,26 +10,26 @@ data class LiveState(
     val bpm: Int? = null,
     val skinContact: Boolean? = null,
     val battery: Int? = null,
-    /** System.currentTimeMillis() последнего измерения. */
+    /** System.currentTimeMillis() of the last measurement. */
     val updatedAt: Long = 0,
     val alarm: AlarmZone = AlarmZone.NORMAL,
     val alarmMuted: Boolean = false,
-    /** Сигнал сейчас вибрирует, и его есть смысл глушить. */
+    /** The alarm is vibrating now, and it makes sense to mute it. */
     val alarmVibrates: Boolean = false,
-    /** Примерная скорость, км/ч; null - не меряется. */
+    /** Approximate speed, km/h; null - not measured. */
     val speedKmh: Double? = null,
-    /** Активный профиль; null - сервис не запущен. Меняется и автовыбором. */
+    /** Active profile; null - the service is not running. Auto selection changes it too. */
     val profile: Profile? = null,
-    /** Границы, по которым сейчас работает сигнал: в авто они шире коридора профиля. */
+    /** Bounds the alarm works by now: in auto they are wider than the profile range. */
     val bounds: IntRange? = null,
 )
 
-/** Текущее состояние датчика в пределах процесса. Источник - HrService. */
+/** Current sensor state within the process. The source is HrService. */
 object LiveHr {
     internal val mutable = MutableStateFlow(LiveState())
     val state: StateFlow<LiveState> = mutable
 
-    /** Последние измерения (ts, bpm) для живого графика; в БД они попадают пачками. */
+    /** Latest measurements (ts, bpm) for the live chart; they reach the DB in batches. */
     internal val recentMutable = MutableStateFlow<List<Pair<Long, Int>>>(emptyList())
     val recent: StateFlow<List<Pair<Long, Int>>> = recentMutable
 

@@ -10,10 +10,10 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * Распознаёт встряхивание по ускорениям (м/с2, t - мс). Встряхивание - несколько резких
- * рывков с чередованием направления подряд, без пауз: рука разворачивается примерно
- * каждые 100-150 мс. Шаг в кармане тоже даёт пару удар-отскок, но после неё пауза
- * до следующего шага около 250 мс и больше; такая пауза обнуляет счёт.
+ * Detects a shake from accelerations (m/s2, t - ms). A shake is several sharp
+ * jerks in a row with alternating direction, without pauses: the hand turns around roughly
+ * every 100-150 ms. A step in a pocket also gives a hit-rebound pair, but after it there is a pause
+ * of about 250 ms or more until the next step; such a pause resets the count.
  */
 class ShakeLogic(
     private val threshold: Float = 13f,
@@ -28,7 +28,7 @@ class ShakeLogic(
     private var lastPeakAt = 0L
     private var firedAt = Long.MIN_VALUE / 2
 
-    /** true - распознано встряхивание. */
+    /** true - a shake was detected. */
     fun onSample(t: Long, x: Float, y: Float, z: Float): Boolean {
         val v = floatArrayOf(x, y, z)
         if (!gravityReady) {
@@ -36,7 +36,7 @@ class ShakeLogic(
             gravityReady = true
             return false
         }
-        // Гравитацию отделяем медленным фильтром, остаток - рывки рукой.
+        // Gravity is separated by a slow filter, the rest is hand jerks.
         for (i in 0..2) gravity[i] = gravity[i] * 0.9f + v[i] * 0.1f
         val lin = FloatArray(3) { v[it] - gravity[it] }
         val mag = sqrt(lin[0] * lin[0] + lin[1] * lin[1] + lin[2] * lin[2])
@@ -46,7 +46,7 @@ class ShakeLogic(
             peaks.clear()
             lastSign = 0
         }
-        // Знак по оси с наибольшим рывком: для чередования направления.
+        // Sign along the axis with the largest jerk: for alternating direction.
         val axis = (0..2).maxBy { abs(lin[it]) }
         val sign = if (lin[axis] > 0) 1 else -1
         if (sign == lastSign && peaks.isNotEmpty()) return false
@@ -69,14 +69,14 @@ class ShakeLogic(
 }
 
 /**
- * Акселерометр слушаем, только пока включён (start/stop решает HrService):
- * постоянный опрос датчика тратил бы заряд.
+ * The accelerometer is listened to only while enabled (HrService decides start/stop):
+ * constant polling of the sensor would drain the battery.
  */
 class ShakeDetector(context: Context, private val onShake: () -> Unit) : SensorEventListener {
     private val sm = context.getSystemService(SensorManager::class.java)
-    // Будящий вариант датчика доставляет события и при выключенном экране; пачками раз
-    // в секунду, чтобы не будить процессор чаще, чем его и так будит пульс с датчика.
-    // Время отсчётов берётся из самих событий, поэтому пачки распознаванию не мешают.
+    // The wake-up variant of the sensor delivers events with the screen off too; in batches once
+    // a second, so as not to wake the CPU more often than the heart rate from the sensor already does.
+    // Sample times come from the events themselves, so batching does not hurt detection.
     private val sensor: Sensor? = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER, true)
         ?: sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private var logic = ShakeLogic()

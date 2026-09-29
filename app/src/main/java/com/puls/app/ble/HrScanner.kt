@@ -21,13 +21,13 @@ data class FoundDevice(
     val name: String?,
     val rssi: Int,
     val hasHrService: Boolean,
-    /** Похоже на датчик пульса: сервис 0x180D, Appearance "Heart Rate Sensor" или имя. */
+    /** Looks like a heart rate sensor: service 0x180D, Appearance "Heart Rate Sensor" or name. */
     val isHrSensor: Boolean,
-    /** Когда датчик последний раз был слышен в эфире, elapsedRealtime. */
+    /** When the sensor was last heard over the air, elapsedRealtime. */
     val seenAt: Long = 0,
 )
 
-/** Система отказала в поиске (например, слишком частые запуски); code - ScanCallback.SCAN_FAILED_*. */
+/** The system refused to scan (for example, too frequent starts); code - ScanCallback.SCAN_FAILED_*. */
 class ScanFailed(val code: Int) : Exception("scan failed: $code")
 
 @SuppressLint("MissingPermission")
@@ -37,8 +37,8 @@ class HrScanner(context: Context) {
     val isBluetoothOn: Boolean get() = adapter?.isEnabled == true
 
     /**
-     * Сканирует без фильтра: не все датчики кладут UUID сервиса в рекламный пакет.
-     * Устройства с Heart Rate Service в рекламе помечаются и показываются первыми.
+     * Scans without a filter: not all sensors put the service UUID in the advertising packet.
+     * Devices with Heart Rate Service in the advertisement are marked and listed first.
      */
     fun scan(): Flow<Map<String, FoundDevice>> = callbackFlow {
         val found = LinkedHashMap<String, FoundDevice>()
@@ -48,7 +48,7 @@ class HrScanner(context: Context) {
                 val name = r.scanRecord?.deviceName ?: r.device.name
                 val hasHr = r.scanRecord?.serviceUuids?.contains(hrUuid) == true
                 val hrAppearance = isHrAppearance(r.scanRecord?.bytes)
-                // Безымянный датчик без UUID в рекламе, но с Appearance "пульс" - тоже показываем.
+                // A nameless sensor with no UUID in the advertisement but with a heart rate Appearance - list it too.
                 if (name == null && !hasHr && !hrAppearance) return
                 val isHr = hasHr || hrAppearance || (name != null && HR_NAME.containsMatchIn(name))
                 found[r.device.address] = FoundDevice(r.device.address, name, r.rssi, hasHr, isHr, SystemClock.elapsedRealtime())
@@ -70,7 +70,7 @@ class HrScanner(context: Context) {
         private const val TAG = "HrScanner"
         private val HR_NAME = Regex("(?i)(heart|\\bhrm?\\b|\\bhr[\\s_-]|polar h|tickr|coros|pulse)")
 
-        /** AD-поле 0x19 Appearance с категорией 0x0D (0x0340-0x037F) - Heart Rate Sensor. */
+        /** AD field 0x19 Appearance with category 0x0D (0x0340-0x037F) - Heart Rate Sensor. */
         fun isHrAppearance(adv: ByteArray?): Boolean {
             adv ?: return false
             var i = 0
@@ -90,7 +90,7 @@ class HrScanner(context: Context) {
         fun looksLikeHrName(name: String) = HR_NAME.containsMatchIn(name)
     }
 
-    /** Виден ли датчик с этим адресом в эфире (ждём не дольше timeoutMs). */
+    /** Whether the sensor with this address is heard over the air (waits no longer than timeoutMs). */
     suspend fun isAdvertising(address: String, timeoutMs: Long): Boolean = withTimeoutOrNull(timeoutMs) {
         callbackFlow {
             val cb = object : ScanCallback() {

@@ -23,7 +23,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
 
-    <!-- Прогулки и тренировки для Calorie: читать может только приложение с той же подписью. -->
+    <!-- Walks and workouts for Calorie: only an app signed with the same key can read them. -->
     <permission
         android:name="com.puls.app.permission.READ_ACTIVITY"
         android:protectionLevel="signature" />
@@ -47,13 +47,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Health Connect до Android 14: экран с объяснением, зачем нужен доступ -->
+            <!-- Health Connect before Android 14: screen explaining why access is needed -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity>
 
-        <!-- Health Connect на Android 14+: тот же экран через системный интент -->
+        <!-- Health Connect on Android 14+: the same screen via the system intent -->
         <activity-alias
             android:name=".ui.ViewPermissionUsageActivity"
             android:exported="true"

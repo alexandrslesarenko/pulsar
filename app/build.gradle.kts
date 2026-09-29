@@ -30,7 +30,7 @@ android {
     buildFeatures {
         compose = true
     }
-    // Список языков для выбора языка приложения в настройках Android 13+.
+    // Language list for the per-app language picker in Android 13+ settings.
     androidResources {
         generateLocaleConfig = true
     }
