@@ -38,7 +38,9 @@ object HealthSync {
         val dao = HrDb.get(context).dao()
         val before = System.currentTimeMillis() / MINUTE * MINUTE
         val zone = ZoneId.systemDefault()
-        val device = Device(type = Device.TYPE_CHEST_STRAP, manufacturer = "COROS", model = "HEART RATE")
+        // The standard HR profile tells neither the maker nor the form factor (strap, armband, watch):
+        // only the advertised name of the chosen sensor is known.
+        val device = Device(type = Device.TYPE_UNKNOWN, model = prefs.deviceName)
 
         while (true) {
             val raw = dao.range(prefs.hcSyncedUntil, before, CHUNK)
