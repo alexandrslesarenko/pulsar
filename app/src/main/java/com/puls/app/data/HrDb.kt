@@ -36,6 +36,9 @@ data class Bucket(val t: Long, val lo: Int, val avg: Double, val hi: Int)
 
 data class Stats(val lo: Int?, val avg: Double?, val hi: Int?, val n: Int)
 
+/** Минута пульса для ActivityProvider: начало минуты, средний пульс, число замеров. */
+data class MinuteHr(val minute: Long, val bpm: Double, val samples: Int)
+
 @Dao
 interface HrDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -66,6 +69,19 @@ interface HrDao {
             "AND ts < :to ORDER BY ts"
     )
     fun marks(from: Long, to: Long): Flow<List<ProfileMark>>
+
+    /** То же, что marks, но синхронно: для ActivityProvider, который работает в потоке binder. */
+    @Query(
+        "SELECT * FROM profile_log WHERE ts >= (SELECT COALESCE(MAX(ts), 0) FROM profile_log WHERE ts <= :from) " +
+            "AND ts < :to ORDER BY ts"
+    )
+    fun marksNow(from: Long, to: Long): List<ProfileMark>
+
+    @Query(
+        "SELECT (ts / 60000) * 60000 AS minute, AVG(bpm) AS bpm, COUNT(*) AS samples " +
+            "FROM hr WHERE ts >= :from AND ts < :to GROUP BY ts / 60000 ORDER BY minute"
+    )
+    fun minutesNow(from: Long, to: Long): List<MinuteHr>
 
     @Query("SELECT * FROM profile_log ORDER BY ts DESC LIMIT 1")
     suspend fun lastMark(): ProfileMark?

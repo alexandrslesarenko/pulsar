@@ -23,6 +23,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
 
+    <!-- Прогулки и тренировки для Calorie: читать может только приложение с той же подписью. -->
+    <permission
+        android:name="com.puls.app.permission.READ_ACTIVITY"
+        android:protectionLevel="signature" />
+
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
     </queries>
@@ -84,6 +89,12 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/hr_widget_info" />
         </receiver>
+
+        <provider
+            android:name=".data.ActivityProvider"
+            android:authorities="com.puls.app.activity"
+            android:exported="true"
+            android:readPermission="com.puls.app.permission.READ_ACTIVITY" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

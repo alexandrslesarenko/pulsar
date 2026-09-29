@@ -5,7 +5,8 @@ import com.puls.app.R
 
 /**
  * Профиль нагрузки: свой коридор пульса и своя настройка вибрации.
- * key хранится в настройках и в журнале профилей в БД - не менять.
+ * key хранится в настройках и в журнале профилей в БД и уходит в Calorie через
+ * ActivityProvider ("walk", "training") - не менять.
  */
 enum class Profile(val key: String, @StringRes val label: Int, val defaultVibrate: Boolean) {
     REST("rest", R.string.profile_rest, false),
