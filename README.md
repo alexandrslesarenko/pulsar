@@ -58,6 +58,9 @@ Pulsar exposes per-minute average heart rate during walks and workouts through a
 read-only content provider (`content://com.puls.app.activity/minutes`). It is guarded by
 a signature permission, so only apps signed with the same key can read it.
 
+[Calorie](https://github.com/alexandrslesarenko/calorie), a calorie counter, uses it to
+account for walks and workouts in the daily calorie target.
+
 ## Disclaimer
 
 Pulsar is not a medical device and must not be used for diagnosis or treatment.
