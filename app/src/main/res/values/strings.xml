@@ -35,6 +35,7 @@
     <string name="notif_setting_on">Heart rate is shown in the notification, on the lock screen and in the Now Bar.</string>
     <string name="notif_setting_off">The notification stays (Android requires it for background work) but is collapsed: no heart rate, no status bar icon, not on the lock screen and not in the Now Bar. An alert still adds the Mute button.</string>
     <string name="action_stop">Stop</string>
+    <string name="action_auto">Auto</string>
 
     <string name="tab_now">Now</string>
     <string name="tab_history">History</string>

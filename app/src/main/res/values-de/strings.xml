@@ -34,6 +34,7 @@
     <string name="notif_setting_on">Die Herzfrequenz wird in der Benachrichtigung, auf dem Sperrbildschirm und in der Now Bar angezeigt.</string>
     <string name="notif_setting_off">Die Benachrichtigung bleibt (Android verlangt sie für die Arbeit im Hintergrund), ist aber eingeklappt: keine Herzfrequenz, kein Symbol in der Statusleiste, nicht auf dem Sperrbildschirm und nicht in der Now Bar. Bei einem Alarm erscheint trotzdem die Schaltfläche \"Stumm\".</string>
     <string name="action_stop">Stopp</string>
+    <string name="action_auto">Auto</string>
 
     <string name="tab_now">Jetzt</string>
     <string name="tab_history">Verlauf</string>

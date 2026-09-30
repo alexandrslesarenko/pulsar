@@ -125,6 +125,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import android.hardware.Sensor
 import android.hardware.SensorManager
@@ -302,6 +303,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        // Auto selection can be turned on from the notification while the screen is open.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                LiveHr.state.filter { it.profile != null }.map { it.autoProfile }.distinctUntilChanged().collect {
+                    autoProfile = prefs.autoProfile
+                }
+            }
+        }
         themeMode = prefs.theme
         appLanguage = currentAppLanguage()
         // A language change recreates the screen: stay on the same settings page.
@@ -331,6 +340,7 @@ class MainActivity : ComponentActivity() {
         released = prefs.released
         stepsGranted = has(Manifest.permission.ACTIVITY_RECOGNITION)
         profile = prefs.profile
+        autoProfile = prefs.autoProfile
         corridor = prefs.range(profile)
         locationGranted = has(Manifest.permission.ACCESS_FINE_LOCATION)
         promotedAllowed = Build.VERSION.SDK_INT < 36 ||

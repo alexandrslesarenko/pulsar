@@ -34,6 +34,7 @@
     <string name="notif_setting_on">심박수가 알림, 잠금 화면, Now Bar에 표시됩니다.</string>
     <string name="notif_setting_off">알림은 유지되지만(Android가 백그라운드 작업에 요구함) 접힌 상태가 됩니다: 심박수 없음, 상태 표시줄 아이콘 없음, 잠금 화면과 Now Bar에도 표시되지 않습니다. 경고가 울리면 \"음소거\" 버튼은 그대로 추가됩니다.</string>
     <string name="action_stop">중지</string>
+    <string name="action_auto">자동</string>
 
     <string name="tab_now">지금</string>
     <string name="tab_history">기록</string>

@@ -164,7 +164,10 @@ class HrService : Service(), HrListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_REFRESH) {
+        if (intent?.action == ACTION_AUTO) {
+            prefs.autoProfile = true
+        }
+        if (intent?.action == ACTION_REFRESH || intent?.action == ACTION_AUTO) {
             updateShake()
             updateMotion()
             updateProfile()
@@ -276,7 +279,7 @@ class HrService : Service(), HrListener {
             Telemetry.log("mode", prefs.profile, on)
         }
         autoOn = on
-        LiveHr.mutable.value = LiveHr.state.value.copy(profile = prefs.profile)
+        LiveHr.mutable.value = LiveHr.state.value.copy(profile = prefs.profile, autoProfile = prefs.autoProfile)
     }
 
     /**
@@ -380,6 +383,8 @@ class HrService : Service(), HrListener {
         if (m.skinContact != lastContact) {
             lastContact = m.skinContact
             m.skinContact?.let { Telemetry.log("contact", it) }
+            // The "Stop" action depends on contact.
+            notifyNow()
         }
         // Without skin contact the sensor sends garbage or 0; this does not go into history.
         if (m.skinContact != false && m.bpm > 0 && now > lastTs) {
@@ -476,17 +481,26 @@ class HrService : Service(), HrListener {
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
         )
-        val stop = PendingIntent.getService(this, 1, stopIntent(this), PendingIntent.FLAG_IMMUTABLE)
         val b = NotificationCompat.Builder(this, if (show) CHANNEL else CHANNEL_QUIET)
         if (s.alarm != AlarmZone.NORMAL && !s.alarmMuted && s.alarmVibrates) {
             val mute = PendingIntent.getService(this, 2, muteIntent(this), PendingIntent.FLAG_IMMUTABLE)
             b.addAction(0, getString(R.string.action_mute), mute)
         }
+        // Auto selection works only with the pedometer; the button is for turning it back on after a manual choice.
+        if (!prefs.autoProfile && motion.stepsOn) {
+            val auto = PendingIntent.getService(this, 3, autoIntent(this), PendingIntent.FLAG_IMMUTABLE)
+            b.addAction(0, getString(R.string.action_auto), auto)
+        }
+        // While heart rate comes in, "Stop" is only an accidental tap away from losing the record;
+        // it is for a sensor that is off, taken off or out of range.
+        if (!live) {
+            val stop = PendingIntent.getService(this, 1, stopIntent(this), PendingIntent.FLAG_IMMUTABLE)
+            b.addAction(0, getString(R.string.action_stop), stop)
+        }
         return b
             .setSmallIcon(R.drawable.ic_heart)
             .setContentTitle(title)
             .setContentIntent(open)
-            .addAction(0, getString(R.string.action_stop), stop)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -515,10 +529,12 @@ class HrService : Service(), HrListener {
         private const val SAMPLE_LOG_MS = 10_000L
         private const val ACTION_STOP = "com.puls.app.STOP"
         private const val ACTION_MUTE = "com.puls.app.MUTE"
+        private const val ACTION_AUTO = "com.puls.app.AUTO"
 
         fun startIntent(context: Context) = Intent(context, HrService::class.java)
         fun stopIntent(context: Context) = Intent(context, HrService::class.java).setAction(ACTION_STOP)
         fun muteIntent(context: Context) = Intent(context, HrService::class.java).setAction(ACTION_MUTE)
+        fun autoIntent(context: Context) = Intent(context, HrService::class.java).setAction(ACTION_AUTO)
 
         fun mute(context: Context) {
             context.startService(muteIntent(context))

@@ -34,6 +34,7 @@
     <string name="notif_setting_on">La frequenza cardiaca è mostrata nella notifica, nella schermata di blocco e nella Now Bar.</string>
     <string name="notif_setting_off">La notifica resta (Android la richiede per il lavoro in background), ma è compressa: niente frequenza cardiaca, niente icona nella barra di stato, non compare nella schermata di blocco né nella Now Bar. Un allarme aggiunge comunque il pulsante \"Silenzia\".</string>
     <string name="action_stop">Ferma</string>
+    <string name="action_auto">Auto</string>
 
     <string name="tab_now">Ora</string>
     <string name="tab_history">Cronologia</string>

@@ -20,6 +20,8 @@ data class LiveState(
     val speedKmh: Double? = null,
     /** Active profile; null - the service is not running. Auto selection changes it too. */
     val profile: Profile? = null,
+    /** Auto selection is on in prefs; it can be turned on from the notification too. */
+    val autoProfile: Boolean = false,
     /** Bounds the alarm works by now: in auto they are wider than the profile range. */
     val bounds: IntRange? = null,
 )

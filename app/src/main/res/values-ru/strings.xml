@@ -34,6 +34,7 @@
     <string name="notif_setting_on">Пульс показывается в уведомлении, на экране блокировки и в Now Bar.</string>
     <string name="notif_setting_off">Уведомление остаётся (Android требует его для фоновой работы), но свёрнуто: без пульса, без значка в строке состояния, не видно на экране блокировки и в Now Bar. При сработавшем сигнале в нём появится кнопка \"Заглушить\".</string>
     <string name="action_stop">Остановить</string>
+    <string name="action_auto">Авто</string>
 
     <string name="tab_now">Сейчас</string>
     <string name="tab_history">История</string>

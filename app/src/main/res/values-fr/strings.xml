@@ -34,6 +34,7 @@
     <string name="notif_setting_on">La fréquence cardiaque s\'affiche dans la notification, sur l\'écran de verrouillage et dans la Now Bar.</string>
     <string name="notif_setting_off">La notification reste (Android l\'exige pour le travail en arrière-plan), mais elle est réduite : pas de fréquence cardiaque, pas d\'icône dans la barre d\'état, ni sur l\'écran de verrouillage ni dans la Now Bar. Une alerte ajoute quand même le bouton \"Couper\".</string>
     <string name="action_stop">Arrêter</string>
+    <string name="action_auto">Auto</string>
 
     <string name="tab_now">Maintenant</string>
     <string name="tab_history">Historique</string>

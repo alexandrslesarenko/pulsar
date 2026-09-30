@@ -34,6 +34,7 @@
     <string name="notif_setting_on">心拍数は通知、ロック画面、Now Bar に表示されます。</string>
     <string name="notif_setting_off">通知は残ります（バックグラウンド動作に Android が必要とするため）が、折りたたまれます：心拍数なし、ステータスバーのアイコンなし、ロック画面と Now Bar にも表示されません。アラート時には \"ミュート\" ボタンが追加されます。</string>
     <string name="action_stop">停止</string>
+    <string name="action_auto">自動</string>
 
     <string name="tab_now">現在</string>
     <string name="tab_history">履歴</string>
