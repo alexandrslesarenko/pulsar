@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">年齢から範囲を計算するには、\"%1$s\" で生年月日を入力してください。</string>
     <string name="vibrate_on">振動 オン</string>
     <string name="vibrate_off">振動 オフ</string>
-    <string name="night_desc">夜 - この時間帯です。夜間の振動がオフのとき、夜間と \"サイレントモード\" の間はアラートが振動しません。イヤホンの音声はそのままです。睡眠 - 夜と、最初の歩数までの朝（最長3時間）。安静モードでは、睡眠中の \"下回り\" アラートは専用の下限より下でのみ鳴ります。睡眠中の心拍数が日中より低いのは正常です。</string>
+    <string name="night_desc">夜 - この時間帯です。夜間の振動がオフのとき、夜間と \"サイレントモード\" の間はアラートが振動しません。イヤホンの音声はそのままです。睡眠 - 夜と、最初の歩数までの朝（最長3時間）。安静モードでは、睡眠中の \"下回り\" アラートは専用の下限より下でのみ鳴ります。睡眠中の心拍数が日中より低いのは正常です。電話のバッテリーを節約するため、睡眠中は設定した間隔ごとに1分間だけ測定し、その間はセンサーを切断します。アラート中は心拍数が範囲に戻るまで測定を続けます。</string>
     <string name="night_from">%1$s から</string>
     <string name="night_to">%1$s まで</string>
     <string name="steps_speed_title">歩数と速度</string>
@@ -239,4 +239,6 @@
     <string name="night_vibrate_on">夜間の振動 オン</string>
     <string name="night_vibrate_off">夜間の振動 オフ</string>
     <string name="sleep_low">睡眠中は %1$d 未満でアラート</string>
+    <string name="sleep_sample_every">睡眠中は %1$d 分ごとに測定</string>
+    <string name="sleep_sample_always">睡眠中は常に測定</string>
 </resources>

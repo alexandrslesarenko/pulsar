@@ -207,6 +207,20 @@ class CadenceTest {
     }
 
     @Test
+    fun movingAtFollowsStepTimeNotDelivery() {
+        val c = Cadence(60_000)
+        assertEquals(0L, c.movingAt)
+        // A batch delivered at once after a pause: the walk was at 100-160 s.
+        c.add(100_000, 1000)
+        c.add(130_000, 1030)
+        c.add(160_000, 1060)
+        assertEquals(160_000L, c.movingAt)
+        // A few steps around the room are not motion.
+        c.add(400_000, 1065)
+        assertEquals(160_000L, c.movingAt)
+    }
+
+    @Test
     fun emptyIsZero() {
         assertEquals(0.0, Cadence().spm(1_000), 0.0)
     }

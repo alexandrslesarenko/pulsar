@@ -17,6 +17,8 @@ The app is in early field testing.
 - Automatic mode selection by heart rate and step cadence.
 - Alarms: distinct vibration patterns for "above", "below", "back in range" and
   "sensor lost"; a separate lower bound during sleep; quiet night hours.
+- Battery saving in sleep: heart rate is measured for a minute at a set interval, and the
+  sensor is disconnected in between.
 - Voice in headphones: current heart rate at an interval, on a shake of the phone, and
   when leaving the range, with the current speed.
 - History with pinch zoom, colored by the range of the mode in effect at the time;

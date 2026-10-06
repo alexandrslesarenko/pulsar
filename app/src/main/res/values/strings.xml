@@ -133,7 +133,7 @@
     <string name="walk_auto_need_birth">To use the range from age, set your date of birth in \"%1$s\".</string>
     <string name="vibrate_on">Vibration on</string>
     <string name="vibrate_off">Vibration off</string>
-    <string name="night_desc">Night - these hours. With vibration at night off, alerts do not vibrate at night or while Do Not Disturb is on; voice in headphones stays. Sleep - the night plus the morning until your first steps (at most 3 h): in Rest mode the \"below\" alert during sleep fires only under its own limit, since a sleeping heart rate below the daytime one is normal.</string>
+    <string name="night_desc">Night - these hours. With vibration at night off, alerts do not vibrate at night or while Do Not Disturb is on; voice in headphones stays. Sleep - the night plus the morning until your first steps (at most 3 h): in Rest mode the \"below\" alert during sleep fires only under its own limit, since a sleeping heart rate below the daytime one is normal. To save the phone battery, in sleep heart rate is measured for a minute once per set interval, and the sensor is disconnected in between; during an alert the measurement goes on until heart rate is back in range.</string>
     <string name="night_from">From %1$s</string>
     <string name="night_to">Until %1$s</string>
     <string name="steps_speed_title">Steps and speed</string>
@@ -241,4 +241,6 @@
     <string name="night_vibrate_on">Vibration at night on</string>
     <string name="night_vibrate_off">Vibration at night off</string>
     <string name="sleep_low">In sleep, alert below %1$d</string>
+    <string name="sleep_sample_every">In sleep, measure every %1$d min</string>
+    <string name="sleep_sample_always">In sleep, measure all the time</string>
 </resources>

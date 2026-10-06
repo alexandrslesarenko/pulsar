@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">Per l\'intervallo in base all\'età, indica la data di nascita in \"%1$s\".</string>
     <string name="vibrate_on">Vibrazione attiva</string>
     <string name="vibrate_off">Vibrazione disattiva</string>
-    <string name="night_desc">Notte - queste ore. Con la vibrazione di notte disattiva gli allarmi non vibrano di notte né con \"Non disturbare\"; la voce nelle cuffie resta. Sonno - la notte e il mattino fino ai primi passi (al massimo 3 h): in modalità Riposo l\'allarme \"sotto\" durante il sonno scatta solo sotto il proprio limite, perché un battito più basso nel sonno è normale.</string>
+    <string name="night_desc">Notte - queste ore. Con la vibrazione di notte disattiva gli allarmi non vibrano di notte né con \"Non disturbare\"; la voce nelle cuffie resta. Sonno - la notte e il mattino fino ai primi passi (al massimo 3 h): in modalità Riposo l\'allarme \"sotto\" durante il sonno scatta solo sotto il proprio limite, perché un battito più basso nel sonno è normale. Per risparmiare la batteria del telefono, nel sonno il battito si misura per un minuto a ogni intervallo scelto e tra una misura e l\'altra il sensore è scollegato; durante un allarme la misura continua finché il battito non torna nell\'intervallo.</string>
     <string name="night_from">Dalle %1$s</string>
     <string name="night_to">Fino alle %1$s</string>
     <string name="steps_speed_title">Passi e velocità</string>
@@ -241,4 +241,6 @@
     <string name="night_vibrate_on">Vibrazione di notte attiva</string>
     <string name="night_vibrate_off">Vibrazione di notte disattiva</string>
     <string name="sleep_low">Nel sonno, allarme sotto %1$d</string>
+    <string name="sleep_sample_every">Nel sonno, misura ogni %1$d min</string>
+    <string name="sleep_sample_always">Nel sonno, misura continua</string>
 </resources>

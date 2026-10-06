@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">要按年龄计算范围，请在\"%1$s\"中填写出生日期。</string>
     <string name="vibrate_on">振动已开启</string>
     <string name="vibrate_off">振动已关闭</string>
-    <string name="night_desc">夜间 - 即这些时间。关闭夜间振动后，夜间和\"免打扰\"期间警报不会振动；耳机语音仍然保留。睡眠 - 夜间以及早上直到第一次走动（最多 3 小时）：在静息模式下，睡眠中的\"过低\"警报只在其专用下限以下才会触发，因为睡眠时心率低于白天属于正常。</string>
+    <string name="night_desc">夜间 - 即这些时间。关闭夜间振动后，夜间和\"免打扰\"期间警报不会振动；耳机语音仍然保留。睡眠 - 夜间以及早上直到第一次走动（最多 3 小时）：在静息模式下，睡眠中的\"过低\"警报只在其专用下限以下才会触发，因为睡眠时心率低于白天属于正常。为节省手机电量，睡眠时每隔设定的时间只测量 1 分钟，其间断开传感器；报警期间会持续测量，直到心率回到范围内。</string>
     <string name="night_from">从 %1$s</string>
     <string name="night_to">到 %1$s</string>
     <string name="steps_speed_title">步数和速度</string>
@@ -239,4 +239,6 @@
     <string name="night_vibrate_on">夜间振动已开启</string>
     <string name="night_vibrate_off">夜间振动已关闭</string>
     <string name="sleep_low">睡眠时低于 %1$d 报警</string>
+    <string name="sleep_sample_every">睡眠时每 %1$d 分钟测量</string>
+    <string name="sleep_sample_always">睡眠时持续测量</string>
 </resources>

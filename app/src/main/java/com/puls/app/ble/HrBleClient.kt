@@ -65,6 +65,11 @@ class HrBleClient(
     private var noSignal = false
     private var batteryReadAt = 0L
     private var batterySubscribed = false
+    /**
+     * Heart rate is wanted; false - in sleep the link is dropped until the next window (SleepSampling).
+     * Not by disabling notifications: COROS ignores the CCCD write and keeps sending once a second.
+     */
+    private var dataWanted = true
 
     fun start(address: String) {
         // Another sensor - do not carry over the old name (otherwise stop() would report it again).
@@ -73,6 +78,7 @@ class HrBleClient(
         this.address = address
         stopped = false
         attempt = 0
+        dataWanted = true
         beginSearch()
         connect(autoConnect = false, state = ConnState.CONNECTING)
     }
@@ -90,6 +96,28 @@ class HrBleClient(
         listener.onState(ConnState.IDLE, deviceName)
     }
 
+    /**
+     * Drop the link for a pause in sleep, or bring it back for the next window. No state is reported:
+     * for the service this is not a link loss (no "lost" alarm). If the sensor does not answer on
+     * resume, the usual reconnect with its states takes over.
+     */
+    fun setDataWanted(on: Boolean) {
+        if (dataWanted == on || stopped) return
+        dataWanted = on
+        if (on) {
+            if (gatt == null) connect(autoConnect = false, state = null)
+            return
+        }
+        cancelTimers()
+        gatt?.let {
+            it.disconnect()
+            it.close()
+        }
+        gatt = null
+        searchSince = 0
+        releaseWake()
+    }
+
     private fun beginSearch() {
         if (searchSince == 0L) searchSince = SystemClock.elapsedRealtime()
         val left = searchLeftMs()
@@ -102,13 +130,14 @@ class HrBleClient(
         if (wakeLock.isHeld) wakeLock.release()
     }
 
-    private fun connect(autoConnect: Boolean, state: ConnState) {
+    /** state - what to report to the listener; null - nothing (resume after a pause). */
+    private fun connect(autoConnect: Boolean, state: ConnState?) {
         val addr = address ?: return
         if (stopped) return
         gatt?.close()
         val device: BluetoothDevice = adapter.getRemoteDevice(addr)
         deviceName = device.name ?: deviceName
-        listener.onState(state, deviceName)
+        state?.let { listener.onState(it, deviceName) }
         Log.i(TAG, "connect $addr autoConnect=$autoConnect attempt=$attempt")
         gatt = device.connectGatt(context, autoConnect, callback, BluetoothDevice.TRANSPORT_LE)
         if (autoConnect) main.postDelayed(renewAutoConnect, AUTO_CONNECT_RENEW_MS)

@@ -147,6 +147,7 @@ import com.puls.app.service.LiveHr
 import com.puls.app.service.LiveState
 import com.puls.app.service.Prefs
 import com.puls.app.service.Profile
+import com.puls.app.service.SleepSampling
 import com.puls.app.data.ProfileLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -868,6 +869,14 @@ class MainActivity : ComponentActivity() {
             prefs.sleepLow = sleepLow
             HrService.refresh(this@MainActivity)
         }
+        var sampleMin by remember { mutableStateOf(prefs.sleepSampleMin) }
+        fun stepSample(delta: Int) {
+            val steps = SleepSampling.INTERVALS
+            val i = steps.indexOf(sampleMin).takeIf { it >= 0 } ?: steps.indexOf(SleepSampling.DEFAULT_INTERVAL)
+            sampleMin = steps[(i + delta).coerceIn(0, steps.lastIndex)]
+            prefs.sleepSampleMin = sampleMin
+            HrService.refresh(this@MainActivity)
+        }
         // Night hours are shared: both vibration silence and the sleep bound use them, so they are always editable.
         SettingsCard(stringResource(R.string.tile_night_title), help = stringResource(R.string.night_desc)) {
             // The switch shows vibration, not silence: "No vibration" turned on read backwards.
@@ -894,6 +903,14 @@ class MainActivity : ComponentActivity() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.sleep_low, sleepLow), Modifier.weight(1f))
                 StepButtons(true, { setSleepLow(sleepLow - 1) }, { setSleepLow(sleepLow + 1) })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (sampleMin == 0) stringResource(R.string.sleep_sample_always)
+                    else stringResource(R.string.sleep_sample_every, sampleMin),
+                    Modifier.weight(1f),
+                )
+                StepButtons(true, { stepSample(-1) }, { stepSample(1) })
             }
         }
     }

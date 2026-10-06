@@ -1,6 +1,7 @@
 package com.puls.app.service
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -74,10 +75,26 @@ class HrService : Service(), HrListener {
     private var destroyed = false
     private var lastSampleLogAt = 0L
     private var lastContact: Boolean? = null
-    /** When there were steps last (cadence from STILL_SPM); in the morning they show the user is awake. */
-    private var lastStepsAt = 0L
     /** Last phone battery level written to the log, and the charging flag. */
     private var loggedPhoneBattery: Pair<Int, Boolean>? = null
+
+    /** Sleep sampling: the heart rate stream is paused until the next window (SleepSampling). */
+    private var paused = false
+    /** elapsedRealtime of the first measurement of the current stream window; 0 - none yet. */
+    private var streamSince = 0L
+    /** When the paused stream is due back, elapsedRealtime. */
+    private var resumeDue = 0L
+    private lateinit var alarms: AlarmManager
+    private lateinit var resumeIntent: PendingIntent
+    private lateinit var sampleWake: PowerManager.WakeLock
+
+    /** The alarm holds the CPU only through onReceive; our wakelock holds it until the stream is back. */
+    private val sampleReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            sampleWake.acquire(RESUME_WAKE_MS)
+            resumeStream("alarm")
+        }
+    }
 
     private val btReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -95,6 +112,7 @@ class HrService : Service(), HrListener {
     /** With the screen off the widget is not updated and the notification is updated rarely; on screen on - right away. */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            resumeStream("screen")
             notifyNow()
             pushWidget(force = true)
         }
@@ -109,6 +127,11 @@ class HrService : Service(), HrListener {
         Telemetry.log("svc", "start")
         nm = getSystemService(NotificationManager::class.java)
         power = getSystemService(PowerManager::class.java)
+        alarms = getSystemService(AlarmManager::class.java)
+        resumeIntent = PendingIntent.getBroadcast(
+            this, 4, Intent(ACTION_SAMPLE).setPackage(packageName), PendingIntent.FLAG_IMMUTABLE,
+        )
+        sampleWake = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "puls:sample").apply { setReferenceCounted(false) }
         nm.deleteNotificationChannel("hr_live")
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL, getString(R.string.channel_live), NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -159,6 +182,9 @@ class HrService : Service(), HrListener {
         ContextCompat.registerReceiver(
             this, screenReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        ContextCompat.registerReceiver(
+            this, sampleReceiver, IntentFilter(ACTION_SAMPLE), ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         scope.launch { periodic() }
         scope.launch(Dispatchers.IO) { runCatching { ProfileLog.record(this@HrService) } }
     }
@@ -168,6 +194,8 @@ class HrService : Service(), HrListener {
             prefs.autoProfile = true
         }
         if (intent?.action == ACTION_REFRESH || intent?.action == ACTION_AUTO) {
+            // Settings changed (the interval among them): the next window decides anew.
+            resumeStream("settings")
             updateShake()
             updateMotion()
             updateProfile()
@@ -181,6 +209,7 @@ class HrService : Service(), HrListener {
         }
         if (intent?.action == ACTION_STOP) {
             prefs.collecting = false
+            dropPause()
             client.stop()
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -199,6 +228,7 @@ class HrService : Service(), HrListener {
             if (client.address != null && client.address != address) {
                 LiveHr.mutable.value = LiveHr.state.value.copy(deviceName = prefs.deviceName, battery = null)
             }
+            dropPause()
             client.start(address)
         }
         updateShake()
@@ -212,6 +242,9 @@ class HrService : Service(), HrListener {
         Telemetry.log("svc", "stop")
         unregisterReceiver(btReceiver)
         unregisterReceiver(screenReceiver)
+        unregisterReceiver(sampleReceiver)
+        dropPause()
+        if (sampleWake.isHeld) sampleWake.release()
         audio.unregisterAudioDeviceCallback(audioCallback)
         shake.stop()
         motion.stop()
@@ -302,7 +335,8 @@ class HrService : Service(), HrListener {
     private fun sleeping(): Boolean {
         val now = System.currentTimeMillis()
         val t = java.time.LocalTime.now()
-        val sinceSteps = lastStepsAt.takeIf { it > 0 }?.let { ((now - it) / 60_000).toInt() }
+        // Steps (cadence from STILL_SPM) in the morning show the user is awake.
+        val sinceSteps = motion.cadence.movingAt.takeIf { it > 0 }?.let { ((now - it) / 60_000).toInt() }
         return HrZones.isSleep(t.hour * 60 + t.minute, prefs.nightFrom, prefs.nightTo, sinceSteps, motion.stepsOn)
     }
 
@@ -367,7 +401,10 @@ class HrService : Service(), HrListener {
                 bpm = if (state == ConnState.CONNECTED) it.bpm else null,
             )
         }
-        if (state != ConnState.CONNECTED) auto.onGap()
+        if (state != ConnState.CONNECTED) {
+            auto.onGap()
+            streamSince = 0
+        }
         when (state) {
             ConnState.CONNECTED -> {}
             ConnState.IDLE -> alarm.reset()
@@ -379,6 +416,9 @@ class HrService : Service(), HrListener {
 
     override fun onMeasurement(m: HrMeasurement) {
         val now = System.currentTimeMillis()
+        val since = SystemClock.elapsedRealtime()
+        if (sampleWake.isHeld) sampleWake.release()
+        if (streamSince == 0L) streamSince = since
         LiveHr.mutable.value = LiveHr.state.value.copy(bpm = m.bpm, skinContact = m.skinContact, updatedAt = now)
         if (m.skinContact != lastContact) {
             lastContact = m.skinContact
@@ -392,7 +432,6 @@ class HrService : Service(), HrListener {
             scope.launch { bufferLock.withLock { buffer += HrSample(now, m.bpm) } }
             LiveHr.recentMutable.value = LiveHr.recent.value
                 .dropWhile { it.first < now - LiveHr.RECENT_WINDOW_MS } + (now to m.bpm)
-            if (motion.stepsOn && motion.cadence.spm(now) >= AutoProfile.STILL_SPM) lastStepsAt = now
             if (autoActive()) {
                 auto.onSample(now, m.bpm, motion.cadence.spm(now), prefs.profile, prefs::range)?.let(::switchProfile)
             }
@@ -411,6 +450,45 @@ class HrService : Service(), HrListener {
             if (now - lastNotifyAt >= minInterval) notifyNow()
         }
         pushWidget(force = false)
+        maybePause(since)
+    }
+
+    /** In sleep the stream runs in windows: between them the phone can sleep (SleepSampling). */
+    private fun maybePause(now: Long) {
+        if (paused) return
+        val interval = prefs.sleepSampleMin
+        val sleep = prefs.profile == Profile.REST && sleeping()
+        val alarmOn = alarm.zone != AlarmZone.NORMAL
+        if (!SleepSampling.shouldPause(interval, sleep, alarmOn, power.isInteractive, streamSince, now)) return
+        paused = true
+        resumeDue = SleepSampling.resumeAt(interval, streamSince, now)
+        streamSince = 0
+        auto.onGap()
+        // Exact alarms need no permission for an app on the battery optimization allowlist.
+        val exact = alarms.canScheduleExactAlarms()
+        if (exact) {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, resumeDue, resumeIntent)
+        } else {
+            alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, resumeDue, resumeIntent)
+        }
+        client.setDataWanted(false)
+        Telemetry.log("duty", "pause", interval, exact)
+    }
+
+    private fun resumeStream(reason: String) {
+        if (!paused) return
+        paused = false
+        streamSince = 0
+        alarms.cancel(resumeIntent)
+        client.setDataWanted(true)
+        Telemetry.log("duty", "resume", reason, (SystemClock.elapsedRealtime() - resumeDue) / 1000)
+    }
+
+    /** Collection stops or another sensor is chosen: a new link starts with the stream on anyway. */
+    private fun dropPause() {
+        paused = false
+        streamSince = 0
+        alarms.cancel(resumeIntent)
     }
 
     /** Phone battery to the log - only changes: they show how much the app drains. */
@@ -530,6 +608,9 @@ class HrService : Service(), HrListener {
         private const val ACTION_STOP = "com.puls.app.STOP"
         private const val ACTION_MUTE = "com.puls.app.MUTE"
         private const val ACTION_AUTO = "com.puls.app.AUTO"
+        private const val ACTION_SAMPLE = "com.puls.app.SAMPLE"
+        /** How long the CPU is held after the resume alarm, waiting for the first measurement. */
+        private const val RESUME_WAKE_MS = 30_000L
 
         fun startIntent(context: Context) = Intent(context, HrService::class.java)
         fun stopIntent(context: Context) = Intent(context, HrService::class.java).setAction(ACTION_STOP)

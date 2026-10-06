@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">Para el rango según la edad, indica tu fecha de nacimiento en \"%1$s\".</string>
     <string name="vibrate_on">Vibración activada</string>
     <string name="vibrate_off">Vibración desactivada</string>
-    <string name="night_desc">Noche - estas horas. Con la vibración de noche desactivada, las alertas no vibran de noche ni con \"No molestar\"; la voz en los auriculares sigue. Sueño - la noche y la mañana hasta los primeros pasos (3 h como máximo): en modo Reposo la alerta \"por debajo\" durante el sueño solo salta por debajo de su propio límite, porque un pulso más bajo al dormir es normal.</string>
+    <string name="night_desc">Noche - estas horas. Con la vibración de noche desactivada, las alertas no vibran de noche ni con \"No molestar\"; la voz en los auriculares sigue. Sueño - la noche y la mañana hasta los primeros pasos (3 h como máximo): en modo Reposo la alerta \"por debajo\" durante el sueño solo salta por debajo de su propio límite, porque un pulso más bajo al dormir es normal. Para ahorrar batería del teléfono, al dormir el pulso se mide un minuto en cada intervalo elegido y entre mediciones el sensor se desconecta; durante una alerta la medición sigue hasta que el pulso vuelve al rango.</string>
     <string name="night_from">Desde %1$s</string>
     <string name="night_to">Hasta %1$s</string>
     <string name="steps_speed_title">Pasos y velocidad</string>
@@ -241,4 +241,6 @@
     <string name="night_vibrate_on">Vibración de noche activada</string>
     <string name="night_vibrate_off">Vibración de noche desactivada</string>
     <string name="sleep_low">Al dormir, alerta por debajo de %1$d</string>
+    <string name="sleep_sample_every">Al dormir, medir cada %1$d min</string>
+    <string name="sleep_sample_always">Al dormir, medir siempre</string>
 </resources>

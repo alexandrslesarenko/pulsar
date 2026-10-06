@@ -136,6 +136,11 @@ class Prefs(context: Context) {
         get() = sp.getInt("sleep_low", SLEEP_LOW)
         set(v) = sp.edit().putInt("sleep_low", v).apply()
 
+    /** In sleep heart rate is measured once in this many minutes (SleepSampling); 0 - all the time. */
+    var sleepSampleMin: Int
+        get() = sp.getInt("sleep_sample_min", SleepSampling.DEFAULT_INTERVAL)
+        set(v) = sp.edit().putInt("sleep_sample_min", v).apply()
+
     init {
         migrateCorridor()
         migrateAlarmSwitch()

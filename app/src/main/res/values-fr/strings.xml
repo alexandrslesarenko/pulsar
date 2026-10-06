@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">Pour la plage selon l\'âge, indiquez votre date de naissance dans \"%1$s\".</string>
     <string name="vibrate_on">Vibration activée</string>
     <string name="vibrate_off">Vibration désactivée</string>
-    <string name="night_desc">Nuit - ces heures. Si la vibration la nuit est désactivée, les alertes ne vibrent pas la nuit ni en mode \"Ne pas déranger\" ; la voix dans les écouteurs reste. Sommeil - la nuit et le matin jusqu\'aux premiers pas (3 h au plus) : en mode Repos, l\'alerte \"en dessous\" pendant le sommeil ne se déclenche que sous sa propre limite, car un pouls plus bas en dormant est normal.</string>
+    <string name="night_desc">Nuit - ces heures. Si la vibration la nuit est désactivée, les alertes ne vibrent pas la nuit ni en mode \"Ne pas déranger\" ; la voix dans les écouteurs reste. Sommeil - la nuit et le matin jusqu\'aux premiers pas (3 h au plus) : en mode Repos, l\'alerte \"en dessous\" pendant le sommeil ne se déclenche que sous sa propre limite, car un pouls plus bas en dormant est normal. Pour ménager la batterie du téléphone, pendant le sommeil le pouls est mesuré une minute par intervalle choisi, et le capteur est déconnecté entre deux mesures ; pendant une alerte, la mesure continue jusqu\'au retour du pouls dans la plage.</string>
     <string name="night_from">De %1$s</string>
     <string name="night_to">À %1$s</string>
     <string name="steps_speed_title">Pas et vitesse</string>
@@ -241,4 +241,6 @@
     <string name="night_vibrate_on">Vibration la nuit activée</string>
     <string name="night_vibrate_off">Vibration la nuit désactivée</string>
     <string name="sleep_low">Pendant le sommeil, alerte sous %1$d</string>
+    <string name="sleep_sample_every">Sommeil : mesure toutes les %1$d min</string>
+    <string name="sleep_sample_always">Sommeil : mesure en continu</string>
 </resources>

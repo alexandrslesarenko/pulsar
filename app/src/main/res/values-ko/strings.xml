@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">나이로 범위를 계산하려면 \"%1$s\"에서 생년월일을 입력하세요.</string>
     <string name="vibrate_on">진동 켜짐</string>
     <string name="vibrate_off">진동 꺼짐</string>
-    <string name="night_desc">밤 - 이 시간대입니다. 밤 진동이 꺼져 있으면 밤과 \"방해 금지\" 중에는 경고가 진동하지 않습니다. 이어폰 음성은 유지됩니다. 수면 - 밤과 첫 걸음까지의 아침(최대 3시간). 안정 모드에서 수면 중 \"미만\" 경고는 전용 하한 아래에서만 울립니다. 수면 중 심박수가 낮보다 낮은 것은 정상입니다.</string>
+    <string name="night_desc">밤 - 이 시간대입니다. 밤 진동이 꺼져 있으면 밤과 \"방해 금지\" 중에는 경고가 진동하지 않습니다. 이어폰 음성은 유지됩니다. 수면 - 밤과 첫 걸음까지의 아침(최대 3시간). 안정 모드에서 수면 중 \"미만\" 경고는 전용 하한 아래에서만 울립니다. 수면 중 심박수가 낮보다 낮은 것은 정상입니다. 휴대폰 배터리를 아끼기 위해 수면 중에는 설정한 간격마다 1분 동안만 측정하고, 그 사이에는 센서 연결을 끊습니다. 경고 중에는 심박수가 범위로 돌아올 때까지 측정을 계속합니다.</string>
     <string name="night_from">%1$s부터</string>
     <string name="night_to">%1$s까지</string>
     <string name="steps_speed_title">걸음과 속도</string>
@@ -239,4 +239,6 @@
     <string name="night_vibrate_on">밤 진동 켜짐</string>
     <string name="night_vibrate_off">밤 진동 꺼짐</string>
     <string name="sleep_low">수면 중 %1$d 미만이면 경고</string>
+    <string name="sleep_sample_every">수면 중 %1$d분마다 측정</string>
+    <string name="sleep_sample_always">수면 중 항상 측정</string>
 </resources>

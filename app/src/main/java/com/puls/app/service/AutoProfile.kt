@@ -141,6 +141,14 @@ class AutoProfile {
 class Cadence(private val windowMs: Long = 60_000L) {
     private val samples = ArrayDeque<Pair<Long, Long>>()
 
+    /**
+     * When the cadence last reached STILL_SPM, by step event time; 0 - never. Readings delivered in a batch
+     * (the CPU slept, heart rate was paused in sleep) still count at the time of the steps.
+     */
+    @Volatile
+    var movingAt = 0L
+        private set
+
     @Synchronized
     fun add(ts: Long, count: Long) {
         // After a reboot the counter starts from zero.
@@ -148,6 +156,7 @@ class Cadence(private val windowMs: Long = 60_000L) {
         samples.addLast(ts to count)
         // One reading older than the window is kept: steps inside the window are counted from it.
         while (samples.size > 1 && samples[1].first <= ts - windowMs) samples.removeFirst()
+        if (spm(ts) >= AutoProfile.STILL_SPM) movingAt = ts
     }
 
     @Synchronized
