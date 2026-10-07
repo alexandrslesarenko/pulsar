@@ -24,7 +24,9 @@ object Telemetry {
         " | sw=auto switch: from,to,med,spm | ev=alarm event: event,bpm,lo,hi | mode=manual/UI: mode,auto" +
         " | conn=state | contact=0/1 | bat=sensor battery %, on change | pbat=phone battery %,charging, on change | svc=start/stop | mute" +
         " | gatt=link failure: what,status (disconnect status 8 - timeout, 19 - sensor closed, 22 - phone closed, 62 - failed to establish)" +
-        " | duty=sleep sampling: pause,interval_min,exact_alarm | resume,reason,late_s (alarm fired this late)"
+        " | duty=sleep sampling: pause,interval_min,exact_alarm | resume,reason,late_s (alarm fired this late)" +
+        " | voice=phrase: kind (event/periodic/shake/profile/test),outcome (ok/no_headphones/not_ready/no_voice/speak_failed),id,focus" +
+        " | start/done/stop/error,id[,code] (TTS engine callbacks) | settings,enabled,interval_min (on change)"
 
     private val io = Executors.newSingleThreadExecutor()
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss")

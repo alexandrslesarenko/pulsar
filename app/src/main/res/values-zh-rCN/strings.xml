@@ -148,7 +148,7 @@
     <string name="to">到</string>
 
     <string name="voice_title">耳机语音</string>
-    <string name="voice_desc">仅在连接耳机时播报：\"心率 105，偏高\"、\"心率 96，恢复正常\"、\"传感器丢失\" - 并定期播报当前心率和速度。播报时会降低音乐音量。</string>
+    <string name="voice_desc">仅在连接耳机时播报：\"心率 105，偏高\"、\"心率 96，恢复正常\"、\"传感器丢失\" - 并定期播报当前心率和速度。播报时会暂停音乐和有声书。</string>
     <string name="headphones_on">耳机已连接。</string>
     <string name="headphones_off">当前未连接耳机。</string>
     <string name="voice_every">同时定期播报心率：</string>

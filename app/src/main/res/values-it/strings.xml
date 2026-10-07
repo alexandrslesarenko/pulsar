@@ -148,7 +148,7 @@
     <string name="to">a</string>
 
     <string name="voice_title">Voce nelle cuffie</string>
-    <string name="voice_desc">Parla solo con le cuffie collegate: \"Battito 105, alto\", \"Battito 96, nella norma\", \"Sensore perso\" - e periodicamente la frequenza cardiaca e la velocità attuali. La musica si abbassa durante la frase.</string>
+    <string name="voice_desc">Parla solo con le cuffie collegate: \"Battito 105, alto\", \"Battito 96, nella norma\", \"Sensore perso\" - e periodicamente la frequenza cardiaca e la velocità attuali. La musica e gli audiolibri vanno in pausa durante la frase.</string>
     <string name="headphones_on">Cuffie collegate.</string>
     <string name="headphones_off">Le cuffie ora non sono collegate.</string>
     <string name="voice_every">Annuncia anche la frequenza cardiaca periodicamente:</string>

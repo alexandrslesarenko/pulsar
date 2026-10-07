@@ -148,7 +148,7 @@
     <string name="to">까지</string>
 
     <string name="voice_title">이어폰 음성</string>
-    <string name="voice_desc">이어폰이 연결되었을 때만 말합니다: \"심박 105, 높음\", \"심박 96, 정상 범위\", \"센서 연결 끊김\" - 그리고 주기적으로 현재 심박수와 속도를 알려 줍니다. 말하는 동안 음악 소리를 줄입니다.</string>
+    <string name="voice_desc">이어폰이 연결되었을 때만 말합니다: \"심박 105, 높음\", \"심박 96, 정상 범위\", \"센서 연결 끊김\" - 그리고 주기적으로 현재 심박수와 속도를 알려 줍니다. 말하는 동안 음악과 오디오북을 일시 정지합니다.</string>
     <string name="headphones_on">이어폰이 연결되었습니다.</string>
     <string name="headphones_off">현재 이어폰이 연결되어 있지 않습니다.</string>
     <string name="voice_every">심박수를 주기적으로 알려 주기:</string>

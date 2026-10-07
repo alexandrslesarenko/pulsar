@@ -148,7 +148,7 @@
     <string name="to">bis</string>
 
     <string name="voice_title">Sprachausgabe über Kopfhörer</string>
-    <string name="voice_desc">Spricht nur bei verbundenen Kopfhörern: \"Puls 105, zu hoch\", \"Puls 96, wieder im Bereich\", \"Sensor verloren\" - und regelmäßig die aktuelle Herzfrequenz und Geschwindigkeit. Musik wird währenddessen leiser gestellt.</string>
+    <string name="voice_desc">Spricht nur bei verbundenen Kopfhörern: \"Puls 105, zu hoch\", \"Puls 96, wieder im Bereich\", \"Sensor verloren\" - und regelmäßig die aktuelle Herzfrequenz und Geschwindigkeit. Musik und Hörbücher pausieren währenddessen.</string>
     <string name="headphones_on">Kopfhörer verbunden.</string>
     <string name="headphones_off">Kopfhörer sind gerade nicht verbunden.</string>
     <string name="voice_every">Herzfrequenz zusätzlich regelmäßig ansagen:</string>

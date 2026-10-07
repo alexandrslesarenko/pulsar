@@ -148,7 +148,7 @@
     <string name="to">まで</string>
 
     <string name="voice_title">イヤホンの音声</string>
-    <string name="voice_desc">イヤホン接続時のみ話します：\"心拍 105、高い\"、\"心拍 96、範囲内\"、\"センサーが見つかりません\" - さらに定期的に現在の心拍数と速度を伝えます。話している間は音楽の音量を下げます。</string>
+    <string name="voice_desc">イヤホン接続時のみ話します：\"心拍 105、高い\"、\"心拍 96、範囲内\"、\"センサーが見つかりません\" - さらに定期的に現在の心拍数と速度を伝えます。話している間は音楽やオーディオブックを一時停止します。</string>
     <string name="headphones_on">イヤホンが接続されています。</string>
     <string name="headphones_off">現在イヤホンは接続されていません。</string>
     <string name="voice_every">心拍数を定期的に読み上げる:</string>

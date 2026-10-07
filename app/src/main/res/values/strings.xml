@@ -149,7 +149,7 @@
     <string name="to">to</string>
 
     <string name="voice_title">Voice in headphones</string>
-    <string name="voice_desc">Speaks only when headphones are connected: \"Heart rate 105, high\", \"Heart rate 96, back in range\", \"Sensor lost\" - and the current heart rate and speed periodically. Music is ducked while speaking.</string>
+    <string name="voice_desc">Speaks only when headphones are connected: \"Heart rate 105, high\", \"Heart rate 96, back in range\", \"Sensor lost\" - and the current heart rate and speed periodically. Music and audiobooks pause for the phrase.</string>
     <string name="headphones_on">Headphones connected.</string>
     <string name="headphones_off">Headphones are not connected now.</string>
     <string name="voice_every">Also speak heart rate periodically:</string>

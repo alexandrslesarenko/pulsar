@@ -148,7 +148,7 @@
     <string name="to">a</string>
 
     <string name="voice_title">Voz en los auriculares</string>
-    <string name="voice_desc">Habla solo con auriculares conectados: \"Pulso 105, alto\", \"Pulso 96, en rango\", \"Sensor perdido\" - y periódicamente la frecuencia cardiaca y la velocidad actuales. La música baja de volumen mientras habla.</string>
+    <string name="voice_desc">Habla solo con auriculares conectados: \"Pulso 105, alto\", \"Pulso 96, en rango\", \"Sensor perdido\" - y periódicamente la frecuencia cardiaca y la velocidad actuales. La música y los audiolibros se pausan mientras habla.</string>
     <string name="headphones_on">Auriculares conectados.</string>
     <string name="headphones_off">Ahora no hay auriculares conectados.</string>
     <string name="voice_every">Decir también la frecuencia cardiaca periódicamente:</string>

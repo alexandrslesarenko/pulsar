@@ -25,7 +25,9 @@ enum class VoiceLang { NATIVE, ENGLISH, NONE }
 /**
  * Voice messages about heart rate. Speaks only into headphones: through the phone speaker
  * everyone around hears it on the move, while the owner with the phone in a pocket does not.
- * Ducks the music for the phrase (transient may duck), then releases focus.
+ * Pauses music and audiobooks for the phrase (transient focus, not "may duck"), then releases focus:
+ * a ducked audiobook narrator talks over the phrase, and without a vibration next to it the phrase went
+ * unnoticed (field test 2026-10-06).
  */
 class HrVoice(private val context: Context, private val prefs: Prefs) {
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -33,13 +35,16 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
         .build()
-    private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+    private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
         .setAudioAttributes(attrs)
         .build()
     private val main = Handler(Looper.getMainLooper())
     private var ready = false
     private var pending: ((Resources) -> String)? = null
+    private var pendingKind = ""
     private var lastPeriodicAt = 0L
+    /** Voice settings last written to the field test log: silence must be told apart from "turned off". */
+    private var loggedSettings = ""
     private var focusHeld = false
     /** Current phrase number: callbacks of interrupted phrases must not release focus of a new one. */
     private var seq = 0
@@ -84,19 +89,29 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         applyLanguage(engine)
         engine.setAudioAttributes(attrs)
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(id: String?) {}
-            override fun onDone(id: String?) = releaseOnMain(id)
+            override fun onStart(id: String?) = Telemetry.log("voice", "start", id)
+            override fun onDone(id: String?) {
+                Telemetry.log("voice", "done", id)
+                releaseOnMain(id)
+            }
             @Deprecated("API < 21")
-            override fun onError(id: String?) = releaseOnMain(id)
+            override fun onError(id: String?) {
+                Telemetry.log("voice", "error", id)
+                releaseOnMain(id)
+            }
             override fun onError(id: String?, errorCode: Int) {
                 Log.w(TAG, "TTS error $errorCode")
+                Telemetry.log("voice", "error", id, errorCode)
                 releaseOnMain(id)
             }
             // The phrase was interrupted by the next one (QUEUE_FLUSH) or by a stop; onDone does not come then.
-            override fun onStop(id: String?, interrupted: Boolean) = releaseOnMain(id)
+            override fun onStop(id: String?, interrupted: Boolean) {
+                Telemetry.log("voice", "stop", id)
+                releaseOnMain(id)
+            }
         })
         ready = true
-        pending?.let { speak(it) }
+        pending?.let { speak(pendingKind, it) }
         pending = null
     }
 
@@ -135,7 +150,7 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
 
     fun onEvent(e: AlarmEvent, bpm: Int?) {
         lastPeriodicAt = System.currentTimeMillis()
-        say { r ->
+        say("event") { r ->
             when (e) {
                 // Speed when leaving the range hints what to do: slow down or speed up.
                 // When back in range no action is needed, so the phrase is shorter.
@@ -150,15 +165,20 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     /** Auto selection switched the profile. */
     fun onProfile(p: Profile) {
         lastPeriodicAt = System.currentTimeMillis()
-        say { r -> r.getString(R.string.voice_profile, r.getString(p.label)) }
+        say("profile") { r -> r.getString(R.string.voice_profile, r.getString(p.label)) }
     }
 
     /** Called on every measurement; decides by itself whether it is time to speak the current heart rate. */
     fun onBpm(bpm: Int, zone: AlarmZone, now: Long) {
+        val settings = "${prefs.voiceEnabled},${prefs.voiceIntervalMin}"
+        if (settings != loggedSettings) {
+            loggedSettings = settings
+            Telemetry.log("voice", "settings", prefs.voiceEnabled, prefs.voiceIntervalMin)
+        }
         val interval = prefs.voiceIntervalMin * 60_000L
         if (interval <= 0 || now - lastPeriodicAt < interval) return
         lastPeriodicAt = now
-        say { r -> withSpeed(r, bpmPhrase(r, bpm, zone)) }
+        say("periodic") { r -> withSpeed(r, bpmPhrase(r, bpm, zone)) }
     }
 
     private fun bpmPhrase(r: Resources, bpm: Int, zone: AlarmZone): String = when (zone) {
@@ -180,31 +200,35 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
     /** On a shake: speak now, without waiting for the interval. */
     fun sayNow(bpm: Int?, zone: AlarmZone) {
         lastPeriodicAt = System.currentTimeMillis()
-        say { r -> withSpeed(r, if (bpm == null) r.getString(R.string.voice_no_data) else bpmPhrase(r, bpm, zone)) }
+        say("shake") { r -> withSpeed(r, if (bpm == null) r.getString(R.string.voice_no_data) else bpmPhrase(r, bpm, zone)) }
     }
 
     /** Test from settings: speaks even without headphones so the voice can be heard. */
-    fun test(bpm: Int?) = speak { r ->
+    fun test(bpm: Int?) = speak("test") { r ->
         if (bpm != null) r.getString(R.string.voice_bpm, bpm) else r.getString(R.string.voice_test)
     }
 
-    private fun say(phrase: (Resources) -> String) {
+    /** [kind] only tells the field test log which phrase it was. */
+    private fun say(kind: String, phrase: (Resources) -> String) {
         if (!prefs.voiceEnabled) return
         if (!headphonesConnected()) {
             val types = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
             Log.i(TAG, "no headphones, silent; outputs=$types")
+            Telemetry.log("voice", kind, "no_headphones")
             return
         }
-        speak(phrase)
+        speak(kind, phrase)
     }
 
     /**
      * The phrase is built here, after the language check: this way the text is always in the language
      * it will be spoken in.
      */
-    private fun speak(phrase: (Resources) -> String) = main.post {
+    private fun speak(kind: String, phrase: (Resources) -> String) = main.post {
         if (!ready) {
+            Telemetry.log("voice", kind, "not_ready")
             pending = phrase
+            pendingKind = kind
             // Initialization failed or hung: retry the engine, but not more often than RETRY_MS.
             if (SystemClock.elapsedRealtime() - createdAt > RETRY_MS) {
                 Log.w(TAG, "TTS not ready, recreating")
@@ -215,7 +239,10 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         }
         // The app language was changed or a voice may have been installed - check again.
         if (context.getString(R.string.tts_locale) != voiceTag || mutableLang.value != VoiceLang.NATIVE) applyLanguage(tts)
-        if (mutableLang.value == VoiceLang.NONE) return@post
+        if (mutableLang.value == VoiceLang.NONE) {
+            Telemetry.log("voice", kind, "no_voice")
+            return@post
+        }
         val text = phrase(voiceRes())
         val granted = audio.requestAudioFocus(focus)
         focusHeld = true
@@ -223,6 +250,7 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
         main.postDelayed(focusTimeout, FOCUS_TIMEOUT_MS)
         currentId = "hr-${++seq}"
         val r = tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, currentId)
+        Telemetry.log("voice", kind, if (r == TextToSpeech.SUCCESS) "ok" else "speak_failed", currentId, granted)
         if (r != TextToSpeech.SUCCESS) {
             // The TTS engine is unbound (its process was killed by the system): it will not come back by itself.
             // Release focus, recreate the engine, the phrase goes out after initialization.
@@ -230,6 +258,7 @@ class HrVoice(private val context: Context, private val prefs: Prefs) {
             release()
             runCatching { tts.shutdown() }
             pending = phrase
+            pendingKind = kind
             tts = createTts()
         }
     }

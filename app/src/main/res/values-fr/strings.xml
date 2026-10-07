@@ -148,7 +148,7 @@
     <string name="to">à</string>
 
     <string name="voice_title">Voix dans les écouteurs</string>
-    <string name="voice_desc">Parle uniquement quand des écouteurs sont connectés : \"Pouls 105, trop haut\", \"Pouls 96, dans la plage\", \"Capteur perdu\" - et régulièrement la fréquence cardiaque et la vitesse actuelles. La musique est baissée pendant la phrase.</string>
+    <string name="voice_desc">Parle uniquement quand des écouteurs sont connectés : \"Pouls 105, trop haut\", \"Pouls 96, dans la plage\", \"Capteur perdu\" - et régulièrement la fréquence cardiaque et la vitesse actuelles. La musique et les livres audio sont mis en pause pendant la phrase.</string>
     <string name="headphones_on">Écouteurs connectés.</string>
     <string name="headphones_off">Aucun écouteur connecté pour le moment.</string>
     <string name="voice_every">Annoncer aussi la fréquence cardiaque régulièrement :</string>
