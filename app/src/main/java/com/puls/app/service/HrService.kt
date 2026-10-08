@@ -112,6 +112,9 @@ class HrService : Service(), HrListener {
     /** With the screen off the widget is not updated and the notification is updated rarely; on screen on - right away. */
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val on = intent.action == Intent.ACTION_SCREEN_ON
+            Telemetry.log("screen", on)
+            if (!on) return
             resumeStream("screen")
             notifyNow()
             pushWidget(force = true)
@@ -180,7 +183,9 @@ class HrService : Service(), HrListener {
             this, btReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         ContextCompat.registerReceiver(
-            this, screenReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED,
+            this, screenReceiver,
+            IntentFilter(Intent.ACTION_SCREEN_ON).apply { addAction(Intent.ACTION_SCREEN_OFF) },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         ContextCompat.registerReceiver(
             this, sampleReceiver, IntentFilter(ACTION_SAMPLE), ContextCompat.RECEIVER_NOT_EXPORTED,

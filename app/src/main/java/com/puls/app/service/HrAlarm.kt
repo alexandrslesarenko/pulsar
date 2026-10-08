@@ -64,7 +64,7 @@ class HrAlarm(
         if (!prefs.alarmEnabled) return@Runnable
         lostSignaled = true
         setZone(AlarmZone.NORMAL, silent = true)
-        play(LOST)
+        play("lost", LOST)
         onEvent(AlarmEvent.LOST, null)
     }
 
@@ -97,7 +97,7 @@ class HrAlarm(
             lostSignaled = false
             candidate = target
             if (target == AlarmZone.NORMAL) {
-                play(BACK)
+                play("back", BACK)
                 onEvent(AlarmEvent.BACK, bpm)
             } else {
                 setZone(target, silent = false, bpm = bpm)
@@ -108,7 +108,7 @@ class HrAlarm(
             candidate = AlarmZone.NORMAL
             if (zone != AlarmZone.NORMAL) {
                 setZone(AlarmZone.NORMAL, silent = true)
-                play(BACK)
+                play("back", BACK)
                 onEvent(AlarmEvent.BACK, bpm)
             }
             return
@@ -137,13 +137,18 @@ class HrAlarm(
     }
 
     /** Whether vibration is allowed now: the profile is set so and it is not night. */
-    fun vibrationAllowed(now: LocalTime = LocalTime.now()): Boolean {
-        if (!prefs.vibrate(prefs.profile)) return false
-        if (!prefs.nightQuiet) return true
+    fun vibrationAllowed(now: LocalTime = LocalTime.now()): Boolean = vibrationBlock(now) == null
+
+    /** Why vibration is off now, null if it is allowed. */
+    private fun vibrationBlock(now: LocalTime = LocalTime.now()): String? {
+        if (!prefs.vibrate(prefs.profile)) return "profile"
+        if (!prefs.nightQuiet) return null
         val dnd = nm.currentInterruptionFilter.let {
             it != NotificationManager.INTERRUPTION_FILTER_ALL && it != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
         }
-        return !dnd && !HrZones.isNight(now.hour * 60 + now.minute, prefs.nightFrom, prefs.nightTo)
+        if (dnd) return "dnd"
+        if (HrZones.isNight(now.hour * 60 + now.minute, prefs.nightFrom, prefs.nightTo)) return "night"
+        return null
     }
 
     fun mute() {
@@ -161,7 +166,7 @@ class HrAlarm(
         candidate = AlarmZone.NORMAL
         bounds = range()
         setZone(AlarmZone.NORMAL, silent = true)
-        play(SWITCH)
+        play("switch", SWITCH)
         onChange()
     }
 
@@ -198,11 +203,13 @@ class HrAlarm(
     private fun playAlarm() {
         alarmPlayedAt = SystemClock.elapsedRealtime()
         // Checked on every round: the night or the profile without vibration may have started meanwhile.
-        play(alarmPattern())
+        play(if (zone == AlarmZone.HIGH) "high" else "low", alarmPattern())
     }
 
-    private fun play(pattern: LongArray) {
-        if (!vibrationAllowed()) return
+    private fun play(kind: String, pattern: LongArray) {
+        val block = vibrationBlock()
+        Telemetry.log("vib", kind, block ?: "ok")
+        if (block != null) return
         // Even positions are pauses, odd ones are pulses at full strength.
         val amplitudes = IntArray(pattern.size) { if (it % 2 == 1) MAX_AMPLITUDE else 0 }
         val effect = VibrationEffect.createWaveform(pattern, amplitudes, -1)
