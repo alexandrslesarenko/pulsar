@@ -499,7 +499,10 @@ class HrService : Service(), HrListener {
     /** Phone battery to the log - only changes: they show how much the app drains. */
     private fun logPhoneBattery() {
         val bm = getSystemService(BatteryManager::class.java)
-        val now = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to bm.isCharging
+        // BatteryManager.isCharging stayed false on a fast charger (S23, 2 % a minute), the plug state does not.
+        val plugged = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val now = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) to (plugged != 0)
         if (now == loggedPhoneBattery) return
         loggedPhoneBattery = now
         Telemetry.log("pbat", now.first, now.second)

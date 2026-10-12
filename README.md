@@ -6,7 +6,9 @@ An Android app that keeps your heart rate within a chosen range. It reads a Blue
 heart rate sensor in the background and tells you when the heart rate goes above or
 below the range: by vibration you can tell apart by touch, and by voice in the headphones.
 
-The app is in early field testing.
+Version 1.0. A ready APK is on the [Releases](https://github.com/alexandrslesarenko/pulsar/releases)
+page. It is signed with a development key: a later build signed with a release key will not
+install over it, so export the history first and import it after reinstalling.
 
 ## Features
 
@@ -16,7 +18,8 @@ The app is in early field testing.
   vibration. Default walk and training ranges are computed from age.
 - Automatic mode selection by heart rate and step cadence.
 - Alarms: distinct vibration patterns for "above", "below", "back in range" and
-  "sensor lost"; a separate lower bound during sleep; quiet night hours.
+  "sensor lost"; a separate lower bound during sleep; quiet night hours (a walk or
+  workout picked by hand still vibrates).
 - Battery saving in sleep: heart rate is measured for a minute at a set interval, and the
   sensor is disconnected in between.
 - Voice in headphones: current heart rate at an interval, on a shake of the phone, and
@@ -48,6 +51,7 @@ JDK 17 and the Android SDK are required. Put the SDK path into `local.properties
 ```bash
 ./gradlew :app:assembleDebug         # APK in app/build/outputs/apk/debug/
 ./gradlew :app:installDebug          # install on a connected phone
+./gradlew :app:assembleRelease       # APK in app/build/outputs/apk/release/
 ./gradlew :app:testDebugUnitTest     # unit tests, no device needed
 ```
 

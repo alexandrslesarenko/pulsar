@@ -22,7 +22,7 @@ object Telemetry {
     private const val KEEP_DAYS = 7L
     private const val LEGEND = "# s=sample(10s): mode,auto,bpm,med,spm,kmh,target,cand,cand_s,rest_high,zone,lo,hi" +
         " | sw=auto switch: from,to,med,spm | ev=alarm event: event,bpm,lo,hi | mode=manual/UI: mode,auto" +
-        " | conn=state | contact=0/1 | bat=sensor battery %, on change | pbat=phone battery %,charging, on change | svc=start/stop | mute" +
+        " | conn=state | contact=0/1 | bat=sensor battery %, on change | pbat=phone battery %,on charger, on change | svc=start/stop | mute" +
         " | gatt=link failure: what,status (disconnect status 8 - timeout, 19 - sensor closed, 22 - phone closed, 62 - failed to establish)" +
         " | duty=sleep sampling: pause,interval_min,exact_alarm | resume,reason,late_s (alarm fired this late)" +
         " | voice=phrase: kind (event/periodic/shake/profile/test),outcome (ok/no_headphones/not_ready/no_voice/speak_failed),id,focus" +

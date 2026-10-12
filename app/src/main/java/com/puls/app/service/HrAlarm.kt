@@ -29,8 +29,8 @@ enum class AlarmEvent { HIGH, LOW, BACK, LOST }
  * dumpsys vibrator_manager), and a looping one then stayed silent until the excursion ended.
  * Leaving the zone uses a HYSTERESIS margin so heart rate right at the bound does not toggle the alarm.
  *
- * Vibration can be turned off per profile and at night; events still go to the voice
- * and the notification, only the vibration motor stays silent.
+ * Vibration can be turned off per profile and at night (not for walk or training picked by hand);
+ * events still go to the voice and the notification, only the vibration motor stays silent.
  */
 class HrAlarm(
     context: Context,
@@ -136,7 +136,7 @@ class HrAlarm(
         }
     }
 
-    /** Whether vibration is allowed now: the profile is set so and it is not night. */
+    /** Whether vibration is allowed now: the profile is set so and it is not quiet night. */
     fun vibrationAllowed(now: LocalTime = LocalTime.now()): Boolean = vibrationBlock(now) == null
 
     /** Why vibration is off now, null if it is allowed. */
@@ -147,6 +147,8 @@ class HrAlarm(
             it != NotificationManager.INTERRUPTION_FILTER_ALL && it != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
         }
         if (dnd) return "dnd"
+        // Walk or training picked by hand at night is a deliberate workout: voice alone is easy to miss.
+        if (!prefs.autoProfile && prefs.profile != Profile.REST) return null
         if (HrZones.isNight(now.hour * 60 + now.minute, prefs.nightFrom, prefs.nightTo)) return "night"
         return null
     }

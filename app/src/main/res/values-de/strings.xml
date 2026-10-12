@@ -132,7 +132,7 @@
     <string name="walk_auto_need_birth">Für den Bereich nach Alter geben Sie Ihr Geburtsdatum unter \"%1$s\" ein.</string>
     <string name="vibrate_on">Vibration an</string>
     <string name="vibrate_off">Vibration aus</string>
-    <string name="night_desc">Nacht - diese Stunden. Ist die Vibration nachts aus, vibrieren Alarme nachts und bei \"Nicht stören\" nicht; die Sprachausgabe über Kopfhörer bleibt. Schlaf - die Nacht und der Morgen bis zu den ersten Schritten (höchstens 3 h): Im Ruhemodus meldet sich der Alarm \"unter\" im Schlaf nur unter seiner eigenen Grenze, denn eine niedrigere Herzfrequenz im Schlaf ist normal. Um den Telefonakku zu schonen, wird im Schlaf einmal pro eingestelltem Intervall eine Minute lang gemessen, dazwischen ist der Sensor getrennt; bei einem Alarm läuft die Messung weiter, bis der Puls wieder im Bereich ist.</string>
+    <string name="night_desc">Nacht - diese Stunden. Ist die Vibration nachts aus, vibrieren Alarme nachts und bei \"Nicht stören\" nicht; die Sprachausgabe über Kopfhörer bleibt. Von Hand gewähltes Gehen oder Training vibriert auch nachts. Schlaf - die Nacht und der Morgen bis zu den ersten Schritten (höchstens 3 h): Im Ruhemodus meldet sich der Alarm \"unter\" im Schlaf nur unter seiner eigenen Grenze, denn eine niedrigere Herzfrequenz im Schlaf ist normal. Um den Telefonakku zu schonen, wird im Schlaf einmal pro eingestelltem Intervall eine Minute lang gemessen, dazwischen ist der Sensor getrennt; bei einem Alarm läuft die Messung weiter, bis der Puls wieder im Bereich ist.</string>
     <string name="night_from">Von %1$s</string>
     <string name="night_to">Bis %1$s</string>
     <string name="steps_speed_title">Schritte und Tempo</string>
