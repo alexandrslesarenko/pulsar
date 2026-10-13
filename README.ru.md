@@ -8,7 +8,10 @@ Bluetooth-датчика в фоне и сообщает, когда пульс 
 
 Версия 1.1. Готовый APK - на странице [Releases](https://github.com/alexandrslesarenko/pulsar/releases).
 С версии 1.1 он подписан release-ключом и ставится поверх 1.0, подписанной ключом
-разработки, с сохранением истории.
+разработки, с сохранением истории. Чтобы получать обновления автоматически, добавьте
+адрес репозитория `https://github.com/alexandrslesarenko/pulsar` в
+[Obtainium](https://github.com/ImranR98/Obtainium): он следит за страницей Releases и ставит
+новые версии поверх старых.
 
 ## Возможности
 

@@ -8,7 +8,10 @@ below the range: by vibration you can tell apart by touch, and by voice in the h
 
 Version 1.1. A ready APK is on the [Releases](https://github.com/alexandrslesarenko/pulsar/releases)
 page. Since 1.1 it is signed with a release key; it installs over 1.0, which was signed with a
-development key, and keeps the history.
+development key, and keeps the history. To get updates automatically, add the repository
+URL `https://github.com/alexandrslesarenko/pulsar` to
+[Obtainium](https://github.com/ImranR98/Obtainium): it checks the Releases page and installs
+new versions over the old one.
 
 ## Features
 
