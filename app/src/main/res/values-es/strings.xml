@@ -27,6 +27,10 @@
     <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
+    <string name="colors_title">Colores</string>
+    <string name="colors_app">App</string>
+    <string name="colors_system">Sistema</string>
+    <string name="colors_help">App: el tono viene del sistema (color del fondo de pantalla) y la app define la claridad del fondo y las tarjetas. Sistema: exactamente la paleta del teléfono; en algunos firmwares, como One UI 9, el tema oscuro se ve apagado con ella.</string>
     <string name="lang_title">Idioma</string>
     <string name="lang_system">Sistema</string>
     <string name="lang_desc">Idioma de la aplicación. \"Sistema\" sigue el idioma del teléfono. La voz en los auriculares habla en el idioma elegido si el teléfono tiene instalada una voz para él.</string>

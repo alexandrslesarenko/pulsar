@@ -237,6 +237,7 @@ class MainActivity : ComponentActivity() {
     /** Copy of prefs.stepsEnabled for the screen: it decides whether "Auto" is available. */
     private var stepsEnabled by mutableStateOf(false)
     private var themeMode by mutableStateOf(Prefs.THEME_SYSTEM)
+    private var colorsMode by mutableStateOf(Prefs.COLORS_APP)
     /** App language chosen manually (tag); "" - follow the system. */
     private var appLanguage by mutableStateOf("")
     /** Open settings item; null - tiles. */
@@ -313,6 +314,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         themeMode = prefs.theme
+        colorsMode = prefs.colors
         appLanguage = currentAppLanguage()
         // A language change recreates the screen: stay on the same settings page.
         settingsPage = savedInstanceState?.getString(STATE_SETTINGS_PAGE)?.let { n -> SettingsPage.entries.firstOrNull { it.name == n } }
@@ -331,7 +333,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 onDispose {}
             }
-            AppTheme(dark) { Surface(Modifier.fillMaxSize()) { Root() } }
+            AppTheme(dark, systemColors = colorsMode == Prefs.COLORS_SYSTEM) { Surface(Modifier.fillMaxSize()) { Root() } }
         }
     }
 
@@ -1551,7 +1553,8 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ThemeSettings() {
-        SettingsCard(stringResource(R.string.theme_title), help = stringResource(R.string.theme_desc)) {
+        val help = stringResource(R.string.theme_desc) + "\n\n" + stringResource(R.string.colors_help)
+        SettingsCard(stringResource(R.string.theme_title), help = help) {
             FitRow { style ->
                 listOf(
                     Prefs.THEME_SYSTEM to R.string.theme_system,
@@ -1563,6 +1566,19 @@ class MainActivity : ComponentActivity() {
                         onClick = {
                             themeMode = mode
                             prefs.theme = mode
+                        },
+                        label = { Text(stringResource(label), maxLines = 1, style = style) },
+                    )
+                }
+            }
+            Text(stringResource(R.string.colors_title), style = MaterialTheme.typography.bodyMedium)
+            FitRow { style ->
+                listOf(Prefs.COLORS_APP to R.string.colors_app, Prefs.COLORS_SYSTEM to R.string.colors_system).forEach { (mode, label) ->
+                    FilterChip(
+                        selected = colorsMode == mode,
+                        onClick = {
+                            colorsMode = mode
+                            prefs.colors = mode
                         },
                         label = { Text(stringResource(label), maxLines = 1, style = style) },
                     )

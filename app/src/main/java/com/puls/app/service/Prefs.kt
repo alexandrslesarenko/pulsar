@@ -12,6 +12,11 @@ class Prefs(context: Context) {
         const val THEME_SYSTEM = "system"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+
+        /** Scheme built by the app from the system color (ui/Palette). */
+        const val COLORS_APP = "app"
+        /** The system Material You scheme as is. */
+        const val COLORS_SYSTEM = "system"
     }
 
     private val sp = context.getSharedPreferences("puls", Context.MODE_PRIVATE)
@@ -192,6 +197,11 @@ class Prefs(context: Context) {
     var theme: String
         get() = sp.getString("theme", THEME_SYSTEM) ?: THEME_SYSTEM
         set(v) = sp.edit().putString("theme", v).apply()
+
+    /** COLORS_APP / COLORS_SYSTEM. */
+    var colors: String
+        get() = sp.getString("colors", COLORS_APP) ?: COLORS_APP
+        set(v) = sp.edit().putString("colors", v).apply()
 
     /** Speed from the pedometer. */
     var stepsEnabled: Boolean

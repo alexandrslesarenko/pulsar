@@ -27,6 +27,10 @@
     <string name="theme_system">시스템</string>
     <string name="theme_light">라이트</string>
     <string name="theme_dark">다크</string>
+    <string name="colors_title">색상</string>
+    <string name="colors_app">앱</string>
+    <string name="colors_system">시스템</string>
+    <string name="colors_help">앱: 색조는 시스템(배경화면 색)에서 가져오고, 배경과 카드의 밝기는 앱이 정합니다. 시스템: 휴대폰 팔레트 그대로이며, One UI 9 등 일부 펌웨어에서는 다크 테마가 바래 보입니다.</string>
     <string name="lang_title">언어</string>
     <string name="lang_system">시스템</string>
     <string name="lang_desc">앱의 언어입니다. \"시스템\"은 휴대폰 언어를 따릅니다. 이어폰 음성은 휴대폰에 해당 언어의 음성이 설치되어 있으면 선택한 언어로 말합니다.</string>
