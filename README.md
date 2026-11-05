@@ -32,6 +32,10 @@ new versions over the old one.
 - Home screen widget, notification, Live Update / Now Bar on Android 16.
 - Writes heart rate to Health Connect (optional).
 - Export and import of the whole history (CSV in gzip).
+- Light and dark theme in the wallpaper color. The app builds the color scheme itself and
+  takes only the shade from the system, so the dark theme stays dark and clear on firmware
+  whose own palette looks faded (One UI 9); a switch brings back the system palette as is.
+  The widget keeps the system colors.
 - Interface and voice in 9 languages: English, Russian, German, French, Spanish,
   Italian, Japanese, Korean, Chinese (Simplified).
 
